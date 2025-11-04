@@ -77,21 +77,26 @@ class MultiMonitorsTodayButton extends St.Button {
     }
 
     setDate(date) {
-        /* Translators: This is the date format to use when the calendar popup is
-         * shown - it is shown just below the time in the top bar (e.g.,
-         * "Tue 9:29 AM").  The string itself should become a full date, e.g.,
-         * "February 17 2015".
-         */
-        const dateFormat = Shell.util_translate_time_string('%B %-d %Y');
-        /* Translators: This is the accessible name of the date button shown
-         * below the time in the shell; it should combine the weekday and the
-         * date, e.g. "Tuesday February 17 2015".
-         */
-        const a11yFormat = Shell.util_translate_time_string('%A %B %e %Y');
-
-        this._dayLabel.set_text(date.toLocaleFormat('%A'));
-        this._dateLabel.set_text(date.toLocaleFormat(dateFormat));
-        this.accessible_name = date.toLocaleFormat(a11yFormat);
+        // Use Intl.DateTimeFormat as toLocaleFormat is not available in GJS 1.78+/GNOME 45+
+        try {
+            const weekdayFmt = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
+            const longDateFmt = new Intl.DateTimeFormat(undefined, {
+                year: 'numeric', month: 'long', day: 'numeric'
+            });
+            const dayText = weekdayFmt.format(date);
+            const dateText = longDateFmt.format(date);
+            this._dayLabel.set_text(dayText);
+            this._dateLabel.set_text(dateText);
+            this.accessible_name = `${dayText} ${dateText}`;
+        } catch (e) {
+            // Fallback via GLib.DateTime formatting
+            const gdt = GLib.DateTime.new_now_local();
+            const dayText = gdt.format('%A');
+            const dateText = gdt.format('%B %e %Y');
+            this._dayLabel.set_text(dayText);
+            this._dateLabel.set_text(dateText);
+            this.accessible_name = `${dayText} ${dateText}`;
+        }
     }
 });
 
@@ -140,16 +145,26 @@ class MultiMonitorsPlaceholder extends St.BoxLayout {
 
 var MultiMonitorsCalendar = (() => {
 	let MultiMonitorsCalendar = class MultiMonitorsCalendar extends St.Widget {
-	    _init () {
-	        this._weekStart = Shell.util_get_week_start();
-	        this._settings = new Gio.Settings({ schema_id: 'org.gnome.desktop.calendar' });
-	
+        _init () {
+            // Prefer the upstream constructor to build the full calendar (header + grid)
+            try {
+                Calendar.Calendar.prototype._init.call(this);
+                // Ensure we have a destroy handler even if upstream changes
+                this.connect('destroy', this._onDestroy.bind(this));
+                return;
+            } catch (e) {
+                // Fallback to a minimal calendar build compatible with our copyClass
+            }
+
+            this._weekStart = Shell.util_get_week_start();
+            this._settings = new Gio.Settings({ schema_id: 'org.gnome.desktop.calendar' });
+
             // The upstream Calendar.SHOW_WEEKDATE_KEY may not exist on all GNOME
             // versions. Guard against undefined to avoid GSettings errors when
             // trying to connect to 'changed::undefined'. If the key is missing,
             // default to not using weekdate.
-            if (Calendar && Calendar.SHOW_WEEKDATE_KEY !== undefined && 
-                typeof Calendar.SHOW_WEEKDATE_KEY === 'string' && 
+            if (Calendar && Calendar.SHOW_WEEKDATE_KEY !== undefined &&
+                typeof Calendar.SHOW_WEEKDATE_KEY === 'string' &&
                 Calendar.SHOW_WEEKDATE_KEY !== 'undefined') {
                 try {
                     this._showWeekdateKeyId = this._settings.connect('changed::' + Calendar.SHOW_WEEKDATE_KEY, this._onSettingsChange.bind(this));
@@ -162,24 +177,25 @@ var MultiMonitorsCalendar = (() => {
                 this._showWeekdateKeyId = 0;
                 this._useWeekdate = false;
             }
-	
-	        this._headerFormatWithoutYear = _('%OB');
-	        this._headerFormat = _('%OB %Y');
-	
-	        // Start off with the current date
-	        this._selectedDate = new Date();
-	
-	        this._shouldDateGrabFocus = false;
-	
-	        super._init({
-	            style_class: 'calendar',
-	            layout_manager: new Clutter.GridLayout(),
-	            reactive: true,
-	        });
-	
-	        this._buildHeader();
-			this.connect('destroy', this._onDestroy.bind(this));
-	    }
+
+            this._headerFormatWithoutYear = _('%OB');
+            this._headerFormat = _('%OB %Y');
+
+            // Start off with the current date
+            this._selectedDate = new Date();
+
+            this._shouldDateGrabFocus = false;
+
+            super._init({
+                style_class: 'calendar',
+                layout_manager: new Clutter.GridLayout(),
+                reactive: true,
+            });
+
+            // Build header and let upstream methods build the rest when setDate is called
+            this._buildHeader();
+            this.connect('destroy', this._onDestroy.bind(this));
+        }
 	    
 	    _onDestroy() {
 	    	this._settings.disconnect(this._showWeekdateKeyId);
@@ -649,7 +665,35 @@ var MultiMonitorsDateMenuButton  = (() => {
 
         this.label_actor = this._clockDisplay;
         this.add_child(box);
-        this.add_style_class_name('clock-display');
+        // Ensure our button and label use the same style classes as the main panel
+        // Button should look like a normal panel button; label should have clock-display
+        this.add_style_class_name('panel-button');
+        try {
+            if (this._clockDisplay && this._clockDisplay.add_style_class_name)
+                this._clockDisplay.add_style_class_name('clock-display');
+        } catch (e) {
+            // ignore
+        }
+        // Copy style classes from the main dateMenu when available for visual parity
+        try {
+            const mainBtn = (MainRef && MainRef.panel && MainRef.panel.statusArea)
+                ? MainRef.panel.statusArea.dateMenu : null;
+            if (mainBtn) {
+                if (mainBtn.get_style_class_name && this.set_style_class_name) {
+                    const btnCls = mainBtn.get_style_class_name();
+                    if (btnCls)
+                        this.set_style_class_name(btnCls);
+                }
+                const mainMenuBox = mainBtn.menu ? mainBtn.menu.box : null;
+                if (mainMenuBox && mainMenuBox.get_style_class_name && this.menu && this.menu.box && this.menu.box.set_style_class_name) {
+                    const menuCls = mainMenuBox.get_style_class_name();
+                    if (menuCls)
+                        this.menu.box.set_style_class_name(menuCls);
+                }
+            }
+        } catch (e) {
+            // best-effort styling; ignore failures
+        }
 
         // Force visibility
         this.visible = true;
@@ -739,8 +783,32 @@ var MultiMonitorsDateMenuButton  = (() => {
                                              style_class: 'datemenu-displays-box' });
         this._displaysSection.add_child(displaysBox);
 
+        // World clocks section
+        try {
+            if (DateMenu.WorldClocksSection) {
+                this._clocksItem = new DateMenu.WorldClocksSection();
+                displaysBox.add_child(this._clocksItem);
+            }
+        } catch (e) {
+            console.log('[Multi Monitors Add-On] WorldClocksSection not available:', e);
+        }
+
+        // Weather section
+        try {
+            if (DateMenu.WeatherSection) {
+                this._weatherItem = new DateMenu.WeatherSection();
+                displaysBox.add_child(this._weatherItem);
+            }
+        } catch (e) {
+            console.log('[Multi Monitors Add-On] WeatherSection not available:', e);
+        }
+
         this._eventsItem = new MultiMonitorsEventsSection();
         displaysBox.add_child(this._eventsItem);
+
+        // Use the local menu (built above) so the popup opens on the external monitor.
+        // We intentionally do NOT open the main panel's date menu here to avoid it
+        // appearing on the primary monitor.
 
         this._clock = new GnomeDesktop.WallClock();
         console.log('[Multi Monitors Add-On] Creating WallClock, initial clock value:', this._clock.clock);
@@ -756,6 +824,15 @@ var MultiMonitorsDateMenuButton  = (() => {
     _onDestroy() {
         MainRef.sessionMode.disconnect(this._sessionModeUpdatedId);
         this._clock.disconnect(this._clockNotifyTimezoneId);
+        
+        // Clean up world clocks and weather if they were created
+        if (this._clocksItem) {
+            this._clocksItem.destroy();
+        }
+        if (this._weatherItem) {
+            this._weatherItem.destroy();
+        }
+        
         super._onDestroy();
     }
     

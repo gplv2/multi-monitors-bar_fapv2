@@ -84,6 +84,8 @@ var StatusIndicatorsController = class StatusIndicatorsController  {
                                                                         this.transferIndicators.bind(this));
         this._excludeIndicatorsId = this._settings.connect('changed::'+EXCLUDE_INDICATORS_ID,
                                                                         this._onExcludeIndicatorsChanged.bind(this));
+
+        // Note: Do not auto-transfer Vitals; user may want it on both panels.
     }
 
     _onExcludeIndicatorsChanged() {
@@ -212,7 +214,86 @@ var StatusIndicatorsController = class StatusIndicatorsController  {
 			this._settings.set_strv(AVAILABLE_INDICATORS_ID, this._available_indicators);
 		}
 	}
+
+    _getFirstExternalMonitorIndex() {
+        const primary = Main.layoutManager.primaryIndex;
+        const n = Main.layoutManager.monitors?.length ?? 1;
+        for (let i = 0; i < n; i++) {
+            if (i !== primary)
+                return i;
+        }
+        // Fallback to primary if no external found
+        return primary;
+    }
+
+    _autoTransferIndicatorByPattern(pattern) {
+        // Read the current available indicators list
+        const available = this._settings.get_strv(AVAILABLE_INDICATORS_ID) || [];
+        const name = available.find(n => pattern.test(n));
+        if (!name)
+            return; // not present
+
+        // Don't override user choices
+        let transfers = this._settings.get_value(TRANSFER_INDICATORS_ID).deep_unpack();
+        if (Object.prototype.hasOwnProperty.call(transfers, name))
+            return; // already configured by user
+
+        const targetMonitor = this._getFirstExternalMonitorIndex();
+        if (targetMonitor === Main.layoutManager.primaryIndex)
+            return; // no external monitor to target
+
+        // Apply the mapping and trigger transfer
+        transfers[name] = targetMonitor;
+        this._settings.set_value(TRANSFER_INDICATORS_ID, new GLib.Variant('a{si}', transfers));
+    }
 };
+
+// Lightweight mirrored indicator that visually clones an existing indicator
+// (e.g., Vitals) from the main panel and opens its menu anchored to this button.
+const MirroredIndicatorButton = GObject.registerClass(
+class MirroredIndicatorButton extends PanelMenu.Button {
+    _init(panel, role) {
+        super._init(0.0, null, true);
+        this.add_style_class_name('panel-button');
+        this._role = role;
+        this._sourceIndicator = Main.panel.statusArea[role] || null;
+
+        // Visual clone of the source indicator's container
+        let cloneChild = null;
+        if (this._sourceIndicator && this._sourceIndicator.container) {
+            try {
+                cloneChild = new Clutter.Clone({ source: this._sourceIndicator.container });
+            } catch (e) {
+                // Fallback to a plain label if cloning fails
+                cloneChild = new St.Label({ text: role });
+            }
+        } else {
+            cloneChild = new St.Label({ text: role });
+        }
+
+        this.add_child(cloneChild);
+
+        // Intercept clicks to open the original indicator's menu anchored here
+        this.connect('button-press-event', (_actor, event) => {
+            try {
+                if (event.get_button && event.get_button() !== 1)
+                    return Clutter.EVENT_PROPAGATE;
+                if (this._sourceIndicator && this._sourceIndicator.menu) {
+                    if (this._sourceIndicator.menu.setSourceActor)
+                        this._sourceIndicator.menu.setSourceActor(this);
+                    if (this._sourceIndicator.menu.isOpen)
+                        this._sourceIndicator.menu.close();
+                    else
+                        this._sourceIndicator.menu.open();
+                    return Clutter.EVENT_STOP;
+                }
+            } catch (e) {
+                // ignore
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+    }
+});
 
 const MultiMonitorsAppMenuButton = GObject.registerClass(
 class MultiMonitorsAppMenuButton extends PanelMenu.Button {
@@ -669,16 +750,21 @@ class MultiMonitorsPanel extends St.Widget {
             let constructor = MULTI_MONITOR_PANEL_ITEM_IMPLEMENTATIONS[role];
             console.log('[Multi Monitors Add-On] constructor for', role, ':', constructor ? 'found' : 'NOT FOUND');
             if (!constructor) {
-                // For system indicators not in our implementations, clone from main panel
-                let mainIndicator = Main.panel.statusArea[role];
-                if (mainIndicator) {
-                    console.log('[Multi Monitors Add-On] Cloning indicator from main panel for role:', role);
-                    // Create a simple reference/proxy to the main panel indicator
-                    // We can't truly clone complex indicators, so we skip them for now
-                    // This is expected behavior - not all indicators can be duplicated
-                    return null;
+                // For indicators not implemented here, optionally mirror specific ones like Vitals
+                const isVitals = /vitals/i.test(role);
+                const mainIndicator = Main.panel.statusArea[role];
+                if (isVitals && mainIndicator) {
+                    console.log('[Multi Monitors Add-On] Creating mirrored indicator for role:', role);
+                    try {
+                        indicator = new MirroredIndicatorButton(this, role);
+                        this.statusArea[role] = indicator;
+                        return indicator;
+                    } catch (e) {
+                        console.error('[Multi Monitors Add-On] Failed to create mirrored indicator for', role, ':', String(e));
+                        return null;
+                    }
                 }
-                // This icon is not implemented and not in main panel
+                // Otherwise, not supported
                 return null;
             }
             console.log('[Multi Monitors Add-On] About to call new constructor for', role);
@@ -765,6 +851,13 @@ class MultiMonitorsPanel extends St.Widget {
         this._updateBox(Main.sessionMode.panel.center, this._centerBox);
         this._updateBox(Main.sessionMode.panel.right, this._rightBox);
         console.log('[Multi Monitors Add-On] statusArea after update:', Object.keys(this.statusArea));
+
+        // Ensure mirrored Vitals appears on the right side before system tray (if present)
+        try {
+            this._ensureVitalsMirrorRightSide();
+        } catch (e) {
+            console.log('[Multi Monitors Add-On] _ensureVitalsMirrorRightSide error:', String(e));
+        }
     }
 
     _updateBox(elements, box) {
@@ -795,5 +888,70 @@ class MultiMonitorsPanel extends St.Widget {
         }
     }
 });
+
+// Helper methods injected into MultiMonitorsPanel prototype
+MultiMonitorsPanel.prototype._findRoleByPattern = function(pattern) {
+    try {
+        const keys = Object.keys(Main.panel.statusArea || {});
+        return keys.find(k => pattern.test(k)) || null;
+    } catch (_e) {
+        return null;
+    }
+};
+
+MultiMonitorsPanel.prototype._getChildIndex = function(box, child) {
+    const n = box.get_n_children();
+    for (let i = 0; i < n; i++) {
+        if (box.get_child_at_index(i) === child)
+            return i;
+    }
+    return -1;
+};
+
+MultiMonitorsPanel.prototype._ensureVitalsMirrorRightSide = function() {
+    const role = this._findRoleByPattern(/vitals/i);
+    const mirrorRole = 'vitalsMirror';
+
+    // If Vitals not present on main panel, remove any mirror we created
+    if (!role) {
+        if (this.statusArea[mirrorRole]) {
+            const ind = this.statusArea[mirrorRole];
+            if (ind.container && ind.container.get_parent())
+                ind.container.get_parent().remove_child(ind.container);
+            ind.destroy();
+            delete this.statusArea[mirrorRole];
+        }
+        return;
+    }
+
+    // Create mirror if missing
+    let indicator = this.statusArea[mirrorRole];
+    if (!indicator) {
+        try {
+            indicator = new MirroredIndicatorButton(this, role);
+            this.statusArea[mirrorRole] = indicator;
+        } catch (e) {
+            console.log('[Multi Monitors Add-On] Failed to create vitals mirror:', String(e));
+            return;
+        }
+    }
+
+    // Determine insertion index: before quickSettings if present, else at end
+    let insertIndex = this._rightBox.get_n_children();
+    const qs = this.statusArea['quickSettings'];
+    if (qs) {
+        const qsContainer = qs.container || qs;
+        const idx = this._getChildIndex(this._rightBox, qsContainer);
+        if (idx >= 0)
+            insertIndex = idx; // place before quick settings
+    }
+
+    // Move/add the mirror container at desired position
+    const container = indicator.container ? indicator.container : indicator;
+    const parent = container.get_parent();
+    if (parent)
+        parent.remove_child(container);
+    this._rightBox.insert_child_at_index(container, insertIndex);
+};
 
 export { StatusIndicatorsController, MultiMonitorsAppMenuButton, MultiMonitorsActivitiesButton, MultiMonitorsPanel };
