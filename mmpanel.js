@@ -186,6 +186,8 @@ var StatusIndicatorsController = class StatusIndicatorsController  {
                 for (const p of panels) {
                     if (p && typeof p._ensureVitalsMirrorRightSide === 'function')
                         p._ensureVitalsMirrorRightSide();
+                    if (p && typeof p._ensureQuickSettingsRightmost === 'function')
+                        p._ensureQuickSettingsRightmost();
                 }
             }
         } catch (e) {}
@@ -548,6 +550,14 @@ class MultiMonitorsPanel extends St.Widget {
         });
         this.add_child(this._centerBox);
 
+        // Wrapper inside center box to center its single child (dateMenu)
+        this._centerBin = new St.Widget({
+            layout_manager: new Clutter.BinLayout(),
+            x_expand: true,
+            y_expand: false,
+        });
+        this._centerBox.add_child(this._centerBin);
+
         // Right box should align to the end
         this._rightBox = new St.BoxLayout({
             name: 'panelRight',
@@ -700,32 +710,26 @@ class MultiMonitorsPanel extends St.Widget {
         const themeNode = this.get_theme_node();
         const contentBox = themeNode.get_content_box(box);
 
-        const leftMinWidth = this._leftBox.get_preferred_width(-1)[0];
-        const centerMinWidth = this._centerBox.get_preferred_width(-1)[0];
-        const rightMinWidth = this._rightBox.get_preferred_width(-1)[0];
-
         const allocWidth = contentBox.get_width();
-        const allocHeight = contentBox.get_height();
+        const third = Math.floor(allocWidth / 3);
 
-        // Allocate the left box
-        const leftNaturalWidth = Math.min(this._leftBox.get_preferred_width(-1)[1], allocWidth / 3);
+        // Left third
         const leftChildBox = new Clutter.ActorBox();
         leftChildBox.x1 = contentBox.x1;
         leftChildBox.y1 = contentBox.y1;
-        leftChildBox.x2 = contentBox.x1 + leftNaturalWidth;
+        leftChildBox.x2 = contentBox.x1 + third;
         leftChildBox.y2 = contentBox.y2;
         this._leftBox.allocate(leftChildBox);
 
-        // Allocate the right box
-        const rightNaturalWidth = Math.min(this._rightBox.get_preferred_width(-1)[1], allocWidth / 3);
+        // Right third
         const rightChildBox = new Clutter.ActorBox();
-        rightChildBox.x1 = contentBox.x2 - rightNaturalWidth;
+        rightChildBox.x1 = contentBox.x2 - third;
         rightChildBox.y1 = contentBox.y1;
         rightChildBox.x2 = contentBox.x2;
         rightChildBox.y2 = contentBox.y2;
         this._rightBox.allocate(rightChildBox);
 
-        // Allocate the center box in the remaining space
+        // Center third (middle section)
         const centerChildBox = new Clutter.ActorBox();
         centerChildBox.x1 = leftChildBox.x2;
         centerChildBox.y1 = contentBox.y1;
@@ -842,8 +846,15 @@ class MultiMonitorsPanel extends St.Widget {
         // Show container BEFORE adding (like main Panel)
         container.show();
 
-        // Add to box at position
-        box.insert_child_at_index(container, position);
+        // If targeting center box, place the item in the center wrapper and center it
+        if (box === this._centerBox && this._centerBin) {
+            container.x_align = Clutter.ActorAlign.CENTER;
+            container.y_align = Clutter.ActorAlign.CENTER;
+            this._centerBin.add_child(container);
+        } else {
+            // Add to box at position
+            box.insert_child_at_index(container, position);
+        }
 
         console.log('[Multi Monitors Add-On] _addToPanelBox: added to box, box has', box.get_n_children(), 'children');
         console.log('[Multi Monitors Add-On] _addToPanelBox: container parent after:', container.get_parent() ? 'HAS PARENT' : 'NO PARENT');
@@ -863,9 +874,10 @@ class MultiMonitorsPanel extends St.Widget {
         this._updateBox(Main.sessionMode.panel.right, this._rightBox);
         console.log('[Multi Monitors Add-On] statusArea after update:', Object.keys(this.statusArea));
 
-        // Ensure mirrored Vitals appears on the right side before system tray (if present)
+        // Ensure mirrored Vitals appears before system tray and system tray is rightmost
         try {
             this._ensureVitalsMirrorRightSide();
+            this._ensureQuickSettingsRightmost();
         } catch (e) {
             console.log('[Multi Monitors Add-On] _ensureVitalsMirrorRightSide error:', String(e));
         }
@@ -963,6 +975,40 @@ MultiMonitorsPanel.prototype._ensureVitalsMirrorRightSide = function() {
     if (parent)
         parent.remove_child(container);
     this._rightBox.insert_child_at_index(container, insertIndex);
+};
+
+// Ensure the mirrored Quick Settings (system tray) exists and is placed at the far right
+MultiMonitorsPanel.prototype._ensureQuickSettingsRightmost = function() {
+    const role = 'quickSettings';
+    const mainQS = Main.panel.statusArea[role];
+    if (!mainQS) {
+        // No quick settings on main panel; remove mirror if any
+        if (this.statusArea[role]) {
+            const ind = this.statusArea[role];
+            const cont = ind.container || ind;
+            if (cont.get_parent()) cont.get_parent().remove_child(cont);
+            ind.destroy();
+            delete this.statusArea[role];
+        }
+        return;
+    }
+
+    let indicator = this.statusArea[role];
+    if (!indicator) {
+        try {
+            indicator = new MirroredIndicatorButton(this, role);
+            this.statusArea[role] = indicator;
+        } catch (e) {
+            console.log('[Multi Monitors Add-On] Failed to create quickSettings mirror:', String(e));
+            return;
+        }
+    }
+
+    // Move/add to be the last item in the right box
+    const container = indicator.container ? indicator.container : indicator;
+    const parent = container.get_parent();
+    if (parent) parent.remove_child(container);
+    this._rightBox.add_child(container);
 };
 
 export { StatusIndicatorsController, MultiMonitorsAppMenuButton, MultiMonitorsActivitiesButton, MultiMonitorsPanel };
