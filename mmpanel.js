@@ -262,48 +262,191 @@ var StatusIndicatorsController = class StatusIndicatorsController  {
 
 // Lightweight mirrored indicator that visually clones an existing indicator
 // (e.g., Vitals) from the main panel and opens its menu anchored to this button.
+console.log('[Multi Monitors Add-On] +++++ DEFINING MirroredIndicatorButton class +++++');
 const MirroredIndicatorButton = GObject.registerClass(
 class MirroredIndicatorButton extends PanelMenu.Button {
     _init(panel, role) {
-        super._init(0.0, null, true);
-        this.add_style_class_name('panel-button');
+        console.log('[Multi Monitors Add-On] ===== MirroredIndicatorButton._init START =====', 'role:', role);
+        super._init(0.0, null, false);  // Initialize as PanelMenu.Button
+        console.log('[Multi Monitors Add-On] ===== super._init done =====');
+
         this._role = role;
+        this._panel = panel;
         this._sourceIndicator = Main.panel.statusArea[role] || null;
 
-        // Visual clone of the source indicator's container
-        let cloneChild = null;
-        if (this._sourceIndicator && this._sourceIndicator.container) {
-            try {
-                cloneChild = new Clutter.Clone({ source: this._sourceIndicator.container });
-            } catch (e) {
-                // Fallback to a plain label if cloning fails
-                cloneChild = new St.Label({ text: role });
-            }
-        } else {
-            cloneChild = new St.Label({ text: role });
-        }
+        console.log('[Multi Monitors Add-On] MirroredIndicatorButton._init for role:', role);
 
-        this.add_child(cloneChild);
-
-        // Intercept clicks to open the original indicator's menu anchored here
-        this.connect('button-press-event', (_actor, event) => {
+        // Try to clone the visual representation from the source indicator
+        if (this._sourceIndicator) {
             try {
-                if (event.get_button && event.get_button() !== 1)
-                    return Clutter.EVENT_PROPAGATE;
-                if (this._sourceIndicator && this._sourceIndicator.menu) {
-                    if (this._sourceIndicator.menu.setSourceActor)
-                        this._sourceIndicator.menu.setSourceActor(this);
-                    if (this._sourceIndicator.menu.isOpen)
-                        this._sourceIndicator.menu.close();
-                    else
-                        this._sourceIndicator.menu.open();
-                    return Clutter.EVENT_STOP;
+                // Clone the first child of the source indicator (the visual part)
+                const sourceChild = this._sourceIndicator.get_first_child();
+                if (sourceChild) {
+                    // Create a visual clone
+                    const clone = new Clutter.Clone({
+                        source: sourceChild,
+                        y_align: Clutter.ActorAlign.CENTER
+                    });
+                    this.add_child(clone);
+                    console.log('[Multi Monitors Add-On] Successfully cloned visual from source indicator');
+                } else {
+                    // Fallback to gear icon if no source child
+                    const label = new St.Label({
+                        text: '⚙',
+                        y_align: Clutter.ActorAlign.CENTER
+                    });
+                    this.add_child(label);
                 }
             } catch (e) {
-                // ignore
+                console.error('[Multi Monitors Add-On] Failed to clone source indicator:', String(e));
+                // Fallback to gear icon
+                const label = new St.Label({
+                    text: '⚙',
+                    y_align: Clutter.ActorAlign.CENTER
+                });
+                this.add_child(label);
             }
-            return Clutter.EVENT_PROPAGATE;
-        });
+        } else {
+            // No source indicator, use gear icon
+            const label = new St.Label({
+                text: '⚙',
+                y_align: Clutter.ActorAlign.CENTER
+            });
+            this.add_child(label);
+        }
+
+        console.log('[Multi Monitors Add-On] MirroredIndicatorButton created, reactive:', this.reactive);
+    }
+
+    vfunc_button_press_event(buttonEvent) {
+        console.log('[Multi Monitors Add-On] !!!!! vfunc_button_press_event FIRED !!!!!');
+        this._onButtonPress();
+        return Clutter.EVENT_STOP;
+    }
+
+    vfunc_event(event) {
+        if (event.type() === Clutter.EventType.BUTTON_PRESS) {
+            console.log('[Multi Monitors Add-On] vfunc_event: BUTTON_PRESS');
+            return this.vfunc_button_press_event(event);
+        }
+        return super.vfunc_event(event);
+    }
+
+    _onButtonPress() {
+        console.log('[Multi Monitors Add-On] =========== MirroredIndicatorButton _onButtonPress called!!! ===========');
+        console.log('[Multi Monitors Add-On] this._role:', this._role);
+        console.log('[Multi Monitors Add-On] this._sourceIndicator:', !!this._sourceIndicator);
+        console.log('[Multi Monitors Add-On] this._sourceIndicator.menu:', !!this._sourceIndicator?.menu);
+
+        try {
+            if (this._sourceIndicator && this._sourceIndicator.menu) {
+                // Get the monitor index based on THIS BUTTON'S POSITION
+                const monitorIndex = Main.layoutManager.findIndexForActor(this);
+                console.log('[Multi Monitors Add-On] MirroredIndicatorButton clicked, button is on monitor:', monitorIndex);
+                console.log('[Multi Monitors Add-On] Button position:', this.get_transformed_position());
+
+                const menu = this._sourceIndicator.menu;
+                console.log('[Multi Monitors Add-On] Menu exists, isOpen:', menu.isOpen);
+
+                // Close menu if already open
+                if (menu.isOpen) {
+                    menu.close();
+                    return Clutter.EVENT_STOP;
+                }
+
+                // Store original state to restore later
+                const originalSourceActor = menu.sourceActor;
+                const originalBoxPointer = menu.box?._sourceActor;
+
+                // Update the menu's sourceActor to point to this mirrored button
+                menu.sourceActor = this;
+
+                // CRITICAL: Update the BoxPointer's source and constraint
+                if (menu.box) {
+                    menu.box._sourceActor = this;
+                    menu.box._sourceAllocation = null; // Force recalculation
+
+                    // Get the monitor geometry
+                    const monitor = Main.layoutManager.monitors[monitorIndex];
+                    console.log('[Multi Monitors Add-On] Monitor geometry:', monitor);
+
+                    // Remove any existing constraint
+                    const constraints = menu.box.get_constraints();
+                    for (let constraint of constraints) {
+                        if (constraint.constructor.name === 'BindConstraint' ||
+                            constraint.constructor.name === 'AlignConstraint') {
+                            menu.box.remove_constraint(constraint);
+                        }
+                    }
+
+                    // Add a layout constraint to keep the menu within the target monitor
+                    // This ensures the menu appears on the correct monitor
+                    try {
+                        // Force the actor to be positioned within the correct monitor bounds
+                        const oldSetPosition = menu.box.setPosition.bind(menu.box);
+                        menu.box.setPosition = function(sourceActor, alignment) {
+                            console.log('[Multi Monitors Add-On] setPosition intercepted, forcing monitor:', monitorIndex);
+                            oldSetPosition(sourceActor, alignment);
+
+                            // After positioning, ensure it's on the correct monitor
+                            const [x, y] = this.get_position();
+                            const [w, h] = this.get_size();
+
+                            // If positioned outside target monitor, move it
+                            if (x < monitor.x || x + w > monitor.x + monitor.width ||
+                                y < monitor.y || y + h > monitor.y + monitor.height) {
+                                console.log('[Multi Monitors Add-On] Menu outside target monitor, repositioning');
+                                // Position below the button
+                                const [btnX, btnY] = sourceActor.get_transformed_position();
+                                const [btnW, btnH] = sourceActor.get_transformed_size();
+
+                                let newX = btnX;
+                                let newY = btnY + btnH;
+
+                                // Keep within monitor bounds
+                                if (newX + w > monitor.x + monitor.width) {
+                                    newX = monitor.x + monitor.width - w;
+                                }
+                                if (newX < monitor.x) {
+                                    newX = monitor.x;
+                                }
+                                if (newY + h > monitor.y + monitor.height) {
+                                    newY = btnY - h; // Show above instead
+                                }
+
+                                console.log('[Multi Monitors Add-On] Repositioning to:', newX, newY);
+                                this.set_position(newX, newY);
+                            }
+                        };
+                    } catch (e) {
+                        console.error('[Multi Monitors Add-On] Failed to override setPosition:', String(e));
+                    }
+                }
+
+                // Connect to open-state-changed to restore original behavior ONLY when closed
+                const openStateId = menu.connect('open-state-changed', (m, isOpen) => {
+                    if (!isOpen) {
+                        // Menu closed - restore everything
+                        console.log('[Multi Monitors Add-On] Menu closed, restoring original state');
+                        menu.sourceActor = originalSourceActor;
+                        if (menu.box) {
+                            menu.box._sourceActor = originalBoxPointer;
+                        }
+                        menu.disconnect(openStateId);
+                    }
+                });
+
+                // Open the menu - it will now use our modified positioning
+                console.log('[Multi Monitors Add-On] Opening menu with modified BoxPointer');
+                menu.open();
+
+                return Clutter.EVENT_STOP;
+            }
+        } catch (e) {
+            console.error('[Multi Monitors Add-On] Error opening mirrored menu:', String(e), e.stack);
+        }
+
+        return Clutter.EVENT_PROPAGATE;
     }
 });
 
