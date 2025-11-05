@@ -634,8 +634,10 @@ class MultiMonitorsActivitiesButton extends PanelMenu.Button {
 
             /* Translators: If there is no suitable word for "Activities"
                in your language, you can use the word for "Overview". */
-            this._label = new St.Label({ text: _("Activities"),
-                                         y_align: Clutter.ActorAlign.CENTER });
+            this._label = new St.Label({
+                text: _("Activities"),
+                y_align: Clutter.ActorAlign.CENTER
+            });
             this.add_child(this._label);
 
             this.label_actor = this._label;
@@ -648,8 +650,18 @@ class MultiMonitorsActivitiesButton extends PanelMenu.Button {
                 this.remove_style_pseudo_class('overview');
                 this.remove_accessible_state (Atk.StateType.CHECKED);
             });
-            
+
             this._xdndTimeOut = 0;
+        }
+
+        vfunc_event(event) {
+            if (event.type() === Clutter.EventType.BUTTON_PRESS ||
+                event.type() === Clutter.EventType.TOUCH_BEGIN) {
+                Main.overview.toggle();
+                return Clutter.EVENT_STOP;
+            }
+
+            return super.vfunc_event(event);
         }
 
         _onDestroy() {
