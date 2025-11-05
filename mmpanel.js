@@ -644,7 +644,7 @@ class MultiMonitorsActivitiesButton extends PanelMenu.Button {
 const MULTI_MONITOR_PANEL_ITEM_IMPLEMENTATIONS = {
     'activities': MultiMonitorsActivitiesButton,
     'appMenu': MultiMonitorsAppMenuButton,
-    'dateMenu': MMCalendar.MultiMonitorsDateMenuButton,
+    // dateMenu is now mirrored instead of having its own implementation
 };
 
 const MultiMonitorsPanel = GObject.registerClass(
@@ -907,11 +907,12 @@ class MultiMonitorsPanel extends St.Widget {
             console.log('[Multi Monitors Add-On] constructor for', role, ':', constructor ? 'found' : 'NOT FOUND');
             if (!constructor) {
                 // For indicators not implemented here, mirror specific core/extension roles
-                // Supported mirrors: quickSettings (system tray) and Vitals (regex)
+                // Supported mirrors: dateMenu, quickSettings (system tray) and Vitals (regex)
                 const isVitals = /vitals/i.test(role);
                 const isQuickSettings = role === 'quickSettings';
+                const isDateMenu = role === 'dateMenu';
                 const mainIndicator = Main.panel.statusArea[role];
-                if ((isVitals || isQuickSettings) && mainIndicator) {
+                if ((isVitals || isQuickSettings || isDateMenu) && mainIndicator) {
                     console.log('[Multi Monitors Add-On] Creating mirrored indicator for role:', role);
                     try {
                         indicator = new MirroredIndicatorButton(this, role);
