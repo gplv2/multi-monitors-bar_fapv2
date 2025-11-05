@@ -286,25 +286,68 @@ class MirroredIndicatorButton extends PanelMenu.Button {
                 y_align: Clutter.ActorAlign.CENTER,
             });
 
-            // Create the activities icon/dot indicator
-            const icon = new St.Widget({
+            // Create the activities icon container
+            const iconContainer = new St.BoxLayout({
                 style_class: 'activities-icon',
                 y_align: Clutter.ActorAlign.CENTER,
                 x_align: Clutter.ActorAlign.CENTER,
             });
-            container.add_child(icon);
+
+            // Create the pill shape (rounded rectangle representing 3 dots)
+            const pill = new St.Widget({
+                style_class: 'activities-pill',
+                width: 18,  // 3 dots × 6px each
+                height: 6,
+                style: 'border-radius: 3px; background-color: rgba(255, 255, 255, 0.8); margin-right: 6px;',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+
+            // Create the single dot
+            const dot = new St.Widget({
+                style_class: 'activities-dot',
+                width: 6,
+                height: 6,
+                style: 'border-radius: 3px; background-color: rgba(255, 255, 255, 0.8);',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+
+            iconContainer.add_child(pill);
+            iconContainer.add_child(dot);
+            container.add_child(iconContainer);
 
             this.add_child(container);
-            this.label_actor = icon;
+            this.label_actor = iconContainer;
+
+            // Store references to the visual elements for state changes
+            this._pill = pill;
+            this._dot = dot;
 
             // Sync with overview state
             this._showingId = Main.overview.connect('showing', () => {
                 this.add_style_pseudo_class('overview');
                 this.add_accessible_state(Atk.StateType.CHECKED);
+                // Update visual state
+                this._pill.set_style('border-radius: 3px; background-color: rgba(255, 255, 255, 1); margin-right: 6px;');
+                this._dot.set_style('border-radius: 3px; background-color: rgba(255, 255, 255, 1);');
             });
             this._hidingId = Main.overview.connect('hiding', () => {
                 this.remove_style_pseudo_class('overview');
                 this.remove_accessible_state(Atk.StateType.CHECKED);
+                // Restore normal visual state
+                this._pill.set_style('border-radius: 3px; background-color: rgba(255, 255, 255, 0.8); margin-right: 6px;');
+                this._dot.set_style('border-radius: 3px; background-color: rgba(255, 255, 255, 0.8);');
+            });
+
+            // Handle hover state
+            this.connect('notify::hover', () => {
+                if (this.hover) {
+                    this._pill.set_style('border-radius: 3px; background-color: rgba(255, 255, 255, 1); margin-right: 6px;');
+                    this._dot.set_style('border-radius: 3px; background-color: rgba(255, 255, 255, 1);');
+                } else if (!Main.overview.visible) {
+                    // Only restore if overview is not showing
+                    this._pill.set_style('border-radius: 3px; background-color: rgba(255, 255, 255, 0.8); margin-right: 6px;');
+                    this._dot.set_style('border-radius: 3px; background-color: rgba(255, 255, 255, 0.8);');
+                }
             });
 
             console.log('[Multi Monitors Add-On] Created activities button with icon');

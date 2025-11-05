@@ -66,19 +66,7 @@
     background-color: rgba(255, 255, 255, 0.2);
 }
 
-/* Activities icon/dot indicator */
+/* Activities icon container - holds pill and dot */
 .activities-icon {
-    width: 10px;
-    height: 10px;
-    border-radius: 5px;
-    background-color: rgba(255, 255, 255, 0.8);
-}
-
-#mmPanelActivities:hover .activities-icon {
-    background-color: rgba(255, 255, 255, 1);
-}
-
-#mmPanelActivities:overview .activities-icon {
-    background-color: rgba(255, 255, 255, 1);
-    box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+    gap: 6px;
 }
