@@ -5,7 +5,7 @@
 
 set -e
 
-EXTENSION_UUID="multi-monitors-add-on@spin83"
+EXTENSION_UUID="multi-monitors-bar@frederykabryan"
 EXTENSION_DIR="$HOME/.local/share/gnome-shell/extensions/$EXTENSION_UUID"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 

@@ -106,7 +106,7 @@ class MultiMonitorsIndicator extends PanelMenu.Button {
 	}
 
 	_onPreferences() {
-		const uuid = "multi-monitors-add-on@spin83";
+		const uuid = "multi-monitors-bar@frederykabryan";
 		Gio.DBus.session.call(
 			'org.gnome.Shell.Extensions',
 			'/org/gnome/Shell/Extensions',

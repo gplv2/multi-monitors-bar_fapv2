@@ -28,12 +28,12 @@ Tested on:
 
 1. **Copy the extension to the GNOME extensions directory:**
    ```bash
-   cp -r multi-monitors-add-on@spin83 ~/.local/share/gnome-shell/extensions/
+   cp -r multi-monitors-bar@frederykabryan ~/.local/share/gnome-shell/extensions/
    ```
 
 2. **Compile the GSettings schema:**
    ```bash
-   glib-compile-schemas ~/.local/share/gnome-shell/extensions/multi-monitors-add-on@spin83/schemas/
+   glib-compile-schemas ~/.local/share/gnome-shell/extensions/multi-monitors-bar@frederykabryan/schemas/
    ```
 
 3. **Restart GNOME Shell:**
@@ -42,7 +42,7 @@ Tested on:
 
 4. **Enable the extension:**
    ```bash
-   gnome-extensions enable multi-monitors-add-on@spin83
+   gnome-extensions enable multi-monitors-bar@frederykabryan
    ```
 
 ### Method 2: Using the Install Script
@@ -52,14 +52,14 @@ Create an install script:
 ```bash
 #!/bin/bash
 
-EXTENSION_DIR="$HOME/.local/share/gnome-shell/extensions/multi-monitors-add-on@spin83"
+EXTENSION_DIR="$HOME/.local/share/gnome-shell/extensions/multi-monitors-bar@frederykabryan"
 
 # Create extensions directory if it doesn't exist
 mkdir -p "$HOME/.local/share/gnome-shell/extensions"
 
 # Copy extension files
 echo "Installing Multi Monitors Add-On..."
-cp -r multi-monitors-add-on@spin83 "$HOME/.local/share/gnome-shell/extensions/"
+cp -r multi-monitors-bar@frederykabryan "$HOME/.local/share/gnome-shell/extensions/"
 
 # Compile schemas
 echo "Compiling GSettings schemas..."
@@ -72,7 +72,7 @@ echo "1. Restart GNOME Shell:"
 echo "   - X11: Press Alt+F2, type 'r', press Enter"
 echo "   - Wayland: Log out and log back in"
 echo "2. Enable the extension:"
-echo "   gnome-extensions enable multi-monitors-add-on@spin83"
+echo "   gnome-extensions enable multi-monitors-bar@frederykabryan"
 ```
 
 Save as `install.sh`, make it executable, and run it:
@@ -95,7 +95,7 @@ Open the extension preferences using one of these methods:
 
 2. **Command line:**
    ```bash
-   gnome-extensions prefs multi-monitors-add-on@spin83
+   gnome-extensions prefs multi-monitors-bar@frederykabryan
    ```
 
 ### Settings
@@ -179,12 +179,12 @@ gsettings set org.gnome.shell.extensions.multi-monitors-add-on thumbnails-slider
 
 1. Make sure the extension is installed in the correct directory:
    ```bash
-   ls ~/.local/share/gnome-shell/extensions/multi-monitors-add-on@spin83/
+   ls ~/.local/share/gnome-shell/extensions/multi-monitors-bar@frederykabryan/
    ```
 
 2. Check that the schema is compiled:
    ```bash
-   ls ~/.local/share/gnome-shell/extensions/multi-monitors-add-on@spin83/schemas/gschemas.compiled
+   ls ~/.local/share/gnome-shell/extensions/multi-monitors-bar@frederykabryan/schemas/gschemas.compiled
    ```
 
 3. Restart GNOME Shell
@@ -198,12 +198,12 @@ gsettings set org.gnome.shell.extensions.multi-monitors-add-on thumbnails-slider
 
 2. Try enabling with verbose output:
    ```bash
-   gnome-extensions enable multi-monitors-add-on@spin83 --verbose
+   gnome-extensions enable multi-monitors-bar@frederykabryan --verbose
    ```
 
 3. Check extension info for errors:
    ```bash
-   gnome-extensions info multi-monitors-add-on@spin83
+   gnome-extensions info multi-monitors-bar@frederykabryan
    ```
 
 ### Panels not showing on additional monitors
@@ -212,8 +212,8 @@ gsettings set org.gnome.shell.extensions.multi-monitors-add-on thumbnails-slider
 2. Check that you have multiple monitors connected
 3. Try disabling and re-enabling the extension:
    ```bash
-   gnome-extensions disable multi-monitors-add-on@spin83
-   gnome-extensions enable multi-monitors-add-on@spin83
+   gnome-extensions disable multi-monitors-bar@frederykabryan
+   gnome-extensions enable multi-monitors-bar@frederykabryan
    ```
 
 ### Indicators not transferring
@@ -236,10 +236,10 @@ To remove the extension:
 
 ```bash
 # Disable the extension
-gnome-extensions disable multi-monitors-add-on@spin83
+gnome-extensions disable multi-monitors-bar@frederykabryan
 
 # Remove extension files
-rm -rf ~/.local/share/gnome-shell/extensions/multi-monitors-add-on@spin83
+rm -rf ~/.local/share/gnome-shell/extensions/multi-monitors-bar@frederykabryan
 
 # Restart GNOME Shell
 # X11: Alt+F2, type 'r', press Enter
@@ -267,7 +267,7 @@ After making changes to the extension code:
 
 1. Recompile schemas if you modified the schema file:
    ```bash
-   glib-compile-schemas ~/.local/share/gnome-shell/extensions/multi-monitors-add-on@spin83/schemas/
+   glib-compile-schemas ~/.local/share/gnome-shell/extensions/multi-monitors-bar@frederykabryan/schemas/
    ```
 
 2. Restart GNOME Shell to reload the extension
