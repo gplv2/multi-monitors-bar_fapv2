@@ -272,75 +272,94 @@ class MirroredIndicatorButton extends PanelMenu.Button {
 
         this._role = role;
         this._panel = panel;
-        
-        // For activities, we need to find the activities button differently since it's not in statusArea
+
+        // For activities, create the same visual appearance as the main panel
         if (role === 'activities') {
-            // Find the activities button in the main panel's left box
-            this._sourceIndicator = Main.panel._leftBox.get_children().find(child => {
-                return child.name === 'panelActivities' || 
-                       (child.accessible_role === Atk.Role.TOGGLE_BUTTON && child._delegate?.name === 'activities');
+            // Create the activities label just like the main panel does
+            this.accessible_role = Atk.Role.TOGGLE_BUTTON;
+            this.name = 'mmPanelActivities';
+
+            const label = new St.Label({
+                text: _("Activities"),
+                y_align: Clutter.ActorAlign.CENTER
             });
+            this.add_child(label);
+            this.label_actor = label;
+
+            // Sync with overview state
+            this._showingId = Main.overview.connect('showing', () => {
+                this.add_style_pseudo_class('overview');
+                this.add_accessible_state(Atk.StateType.CHECKED);
+            });
+            this._hidingId = Main.overview.connect('hiding', () => {
+                this.remove_style_pseudo_class('overview');
+                this.remove_accessible_state(Atk.StateType.CHECKED);
+            });
+
+            console.log('[Multi Monitors Add-On] Created activities button with label');
+            this._sourceIndicator = null;
         } else {
+            // For other indicators, find them in statusArea and clone
             this._sourceIndicator = Main.panel.statusArea[role] || null;
-        }
 
-        console.log('[Multi Monitors Add-On] MirroredIndicatorButton._init for role:', role);
+            console.log('[Multi Monitors Add-On] MirroredIndicatorButton._init for role:', role);
 
-        // Try to clone the visual representation from the source indicator
-        if (this._sourceIndicator) {
-            try {
-                // Clone the first child of the source indicator (the visual part)
-                const sourceChild = this._sourceIndicator.get_first_child();
-                if (sourceChild) {
-                    // Create a visual clone with proper sizing
-                    const clone = new Clutter.Clone({
-                        source: sourceChild,
-                        y_align: Clutter.ActorAlign.CENTER
-                    });
+            // Try to clone the visual representation from the source indicator
+            if (this._sourceIndicator) {
+                try {
+                    // Clone the first child of the source indicator (the visual part)
+                    const sourceChild = this._sourceIndicator.get_first_child();
+                    if (sourceChild) {
+                        // Create a visual clone with proper sizing
+                        const clone = new Clutter.Clone({
+                            source: sourceChild,
+                            y_align: Clutter.ActorAlign.CENTER
+                        });
 
-                    // Apply the same style classes from the source indicator
-                    // This ensures proper font sizing and styling
-                    try {
-                        if (this._sourceIndicator.get_style_class_name) {
-                            const styleClasses = this._sourceIndicator.get_style_class_name();
-                            if (styleClasses) {
-                                this.set_style_class_name(styleClasses);
+                        // Apply the same style classes from the source indicator
+                        // This ensures proper font sizing and styling
+                        try {
+                            if (this._sourceIndicator.get_style_class_name) {
+                                const styleClasses = this._sourceIndicator.get_style_class_name();
+                                if (styleClasses) {
+                                    this.set_style_class_name(styleClasses);
+                                }
                             }
+                        } catch (e) {
+                            console.log('[Multi Monitors Add-On] Could not copy style classes:', String(e));
                         }
-                    } catch (e) {
-                        console.log('[Multi Monitors Add-On] Could not copy style classes:', String(e));
+
+                        // Ensure clone scales properly with the panel
+                        // The clone should match the natural size of the source
+                        clone.set_size(-1, -1);  // Natural size
+
+                        this.add_child(clone);
+                        console.log('[Multi Monitors Add-On] Successfully cloned visual from source indicator');
+                    } else {
+                        // Fallback to gear icon if no source child
+                        const label = new St.Label({
+                            text: '⚙',
+                            y_align: Clutter.ActorAlign.CENTER
+                        });
+                        this.add_child(label);
                     }
-
-                    // Ensure clone scales properly with the panel
-                    // The clone should match the natural size of the source
-                    clone.set_size(-1, -1);  // Natural size
-
-                    this.add_child(clone);
-                    console.log('[Multi Monitors Add-On] Successfully cloned visual from source indicator');
-                } else {
-                    // Fallback to gear icon if no source child
+                } catch (e) {
+                    console.error('[Multi Monitors Add-On] Failed to clone source indicator:', String(e));
+                    // Fallback to gear icon
                     const label = new St.Label({
                         text: '⚙',
                         y_align: Clutter.ActorAlign.CENTER
                     });
                     this.add_child(label);
                 }
-            } catch (e) {
-                console.error('[Multi Monitors Add-On] Failed to clone source indicator:', String(e));
-                // Fallback to gear icon
+            } else {
+                // No source indicator, use gear icon
                 const label = new St.Label({
                     text: '⚙',
                     y_align: Clutter.ActorAlign.CENTER
                 });
                 this.add_child(label);
             }
-        } else {
-            // No source indicator, use gear icon
-            const label = new St.Label({
-                text: '⚙',
-                y_align: Clutter.ActorAlign.CENTER
-            });
-            this.add_child(label);
         }
 
         console.log('[Multi Monitors Add-On] MirroredIndicatorButton created, reactive:', this.reactive);
@@ -482,6 +501,21 @@ class MirroredIndicatorButton extends PanelMenu.Button {
         }
 
         return Clutter.EVENT_PROPAGATE;
+    }
+
+    vfunc_destroy() {
+        // Disconnect overview signals for activities button
+        if (this._role === 'activities') {
+            if (this._showingId) {
+                Main.overview.disconnect(this._showingId);
+                this._showingId = null;
+            }
+            if (this._hidingId) {
+                Main.overview.disconnect(this._hidingId);
+                this._hidingId = null;
+            }
+        }
+        super.vfunc_destroy();
     }
 });
 
