@@ -1,6 +1,6 @@
-# Multi Monitors Add-On for GNOME Shell
+# Multi Monitor Bar for GNOME Shell
 
-Add multiple monitors overview and panel for GNOME Shell.
+Add multiple monitors overview and panel for GNOME Shell. This is an updated fork with GNOME 46 compatibility.
 
 ## Features
 
@@ -45,42 +45,21 @@ Tested on:
    gnome-extensions enable multi-monitors-bar@frederykabryan
    ```
 
-### Method 2: Using the Install Script
+### Method 2: Using the Install Script (Recommended)
 
-Create an install script:
-
-```bash
-#!/bin/bash
-
-EXTENSION_DIR="$HOME/.local/share/gnome-shell/extensions/multi-monitors-bar@frederykabryan"
-
-# Create extensions directory if it doesn't exist
-mkdir -p "$HOME/.local/share/gnome-shell/extensions"
-
-# Copy extension files
-echo "Installing Multi Monitors Add-On..."
-cp -r multi-monitors-bar@frederykabryan "$HOME/.local/share/gnome-shell/extensions/"
-
-# Compile schemas
-echo "Compiling GSettings schemas..."
-glib-compile-schemas "$EXTENSION_DIR/schemas/"
-
-echo "Installation complete!"
-echo ""
-echo "Next steps:"
-echo "1. Restart GNOME Shell:"
-echo "   - X11: Press Alt+F2, type 'r', press Enter"
-echo "   - Wayland: Log out and log back in"
-echo "2. Enable the extension:"
-echo "   gnome-extensions enable multi-monitors-bar@frederykabryan"
-```
-
-Save as `install.sh`, make it executable, and run it:
+The extension includes an install script that handles everything automatically:
 
 ```bash
 chmod +x install.sh
 ./install.sh
 ```
+
+The script will:
+- Check your GNOME Shell version for compatibility
+- Create the necessary directories
+- Copy all extension files
+- Compile the GSettings schemas
+- Provide instructions for enabling the extension
 
 ## Configuration
 
@@ -90,7 +69,7 @@ Open the extension preferences using one of these methods:
 
 1. **GNOME Extensions app:**
    - Open "Extensions" application
-   - Find "Multi Monitors Add-On"
+   - Find "Multi Monitor Bar"
    - Click the settings icon
 
 2. **Command line:**
@@ -285,13 +264,17 @@ This program is free software; you can redistribute it and/or modify it under th
 
 Original author: spin83
 
-Repository: https://github.com/spin83/multi-monitors-add-on
+Original repository: https://github.com/spin83/multi-monitors-add-on
+
+Updated by: Frederyk
 
 ## Changelog
 
-### Version 26 (GNOME 46 Update)
+### Version 29 (Current)
+- Updated extension UUID to `multi-monitors-bar@frederykabryan`
 - Added support for GNOME Shell 45 and 46
 - Added `exclude-indicators` setting to prevent specific indicators from being transferred
 - Fildem indicator is now excluded by default, keeping it on the main monitor
 - Improved indicator filtering logic
 - Updated for Zorin OS 18 / Ubuntu 24.04 LTS compatibility
+- Improved installation script with version checking and better error handling
