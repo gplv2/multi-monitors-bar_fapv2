@@ -164,13 +164,22 @@ var StatusIndicatorsController = class StatusIndicatorsController  {
 				if(!panel) {
 					panel = this._findPanel(element.monitor);
 				}
-				if(panel[element.box].contains(indicator.container)) {
+				if(panel && panel[element.box].contains(indicator.container)) {
 		    		console.log("r "+element.box+ " > " + element.iname + " : "+ element.monitor);
 		    		panel[element.box].remove_child(indicator.container);
-		    		if (element.box === '_leftBox')
-		    			Main.panel[element.box].insert_child_at_index(indicator.container, 1);
-		    		else
+		    		
+		    		// IMPORTANT: Be more careful about insertion position to avoid extra widgets
+		    		if (element.box === '_leftBox') {
+		    			// For left box, try to insert after activities (if it exists) or at the end
+		    			let insertIndex = 1; // Default after activities
+		    			const leftBoxChildren = Main.panel[element.box].get_n_children();
+		    			if (leftBoxChildren > 1) {
+		    				insertIndex = leftBoxChildren; // Insert at end to avoid conflicts
+		    			}
+		    			Main.panel[element.box].insert_child_at_index(indicator.container, insertIndex);
+		    		} else {
 		    			Main.panel[element.box].insert_child_at_index(indicator.container, 0);
+		    		}
 				}
 			}
 		});

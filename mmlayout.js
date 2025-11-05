@@ -215,6 +215,12 @@ export class MultiMonitorsLayoutManager {
 	}
 
 	_pushPanel(i, monitor) {
+		// CRITICAL: Never create panels for primary monitor
+		if (i === Main.layoutManager.primaryIndex) {
+			console.log('[Multi Monitors Add-On] _pushPanel: BLOCKED - refusing to create panel for primary monitor', i);
+			return;
+		}
+		
 		console.log('[Multi Monitors Add-On] _pushPanel: creating panel for monitor', i);
 		let mmPanelBox = new MultiMonitorsPanelBox(monitor);
 		console.log('[Multi Monitors Add-On] _pushPanel: mmPanelBox created');
@@ -287,13 +293,16 @@ export class MultiMonitorsLayoutManager {
 	}
 
 	_showAppMenu() {
-		// Use helper function to get mmPanel array
+		// Disabled: Don't modify main panel's app menu to keep it clean
+		// With Fildem global menu support, we don't need to change the main panel
+		// The extension will still create app menus on external monitors only
 		const mmPanelRef = getMMPanelArray();
 		if (this._settings.get_boolean(MMPanel.SHOW_APP_MENU_ID) && mmPanelRef && mmPanelRef.length>0) {
-			if (!this.mmappMenu) {
-				this._changeMainPanelAppMenuButton(MMPanel.MultiMonitorsAppMenuButton);
-				this.mmappMenu = true;
-			}
+			// Skip main panel modification - only external monitors get app menus
+			// if (!this.mmappMenu) {
+			// 	this._changeMainPanelAppMenuButton(MMPanel.MultiMonitorsAppMenuButton);
+			// 	this.mmappMenu = true;
+			// }
 		}
 		else {
 			this._hideAppMenu();
@@ -301,15 +310,16 @@ export class MultiMonitorsLayoutManager {
 	}
 
 	_hideAppMenu() {
-		if (this.mmappMenu) {
-			// Only restore if PanelModule.AppMenuButton exists (it doesn't in GNOME 46)
-			if (PanelModule.AppMenuButton) {
-				this._changeMainPanelAppMenuButton(PanelModule.AppMenuButton);
-			}
-			this.mmappMenu = false;
-			if (Main.panel._updatePanel) {
-				Main.panel._updatePanel();
-			}
-		}
+		// Disabled: Since we don't modify main panel, no need to restore
+		// if (this.mmappMenu) {
+		// 	// Only restore if PanelModule.AppMenuButton exists (it doesn't in GNOME 46)
+		// 	if (PanelModule.AppMenuButton) {
+		// 		this._changeMainPanelAppMenuButton(PanelModule.AppMenuButton);
+		// 	}
+		// 	this.mmappMenu = false;
+		// 	if (Main.panel._updatePanel) {
+		// 		Main.panel._updatePanel();
+		// 	}
+		// }
 	}
 }
