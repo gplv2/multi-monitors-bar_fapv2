@@ -506,6 +506,9 @@ class MirroredIndicatorButton extends PanelMenu.Button {
                     this._sourceIndicator.remove_style_pseudo_class('active');
                     this._sourceIndicator.remove_style_pseudo_class('checked');
                 }
+                
+                // Add active style to THIS button (the external monitor button)
+                this.add_style_pseudo_class('active');
 
                 // Update the menu's sourceActor to point to this mirrored button
                 menu.sourceActor = this;
@@ -574,7 +577,10 @@ class MirroredIndicatorButton extends PanelMenu.Button {
 
                 // Connect to open-state-changed to restore original behavior ONLY when closed
                 const openStateId = menu.connect('open-state-changed', (m, isOpen) => {
-                    if (!isOpen) {
+                    if (isOpen) {
+                        // Menu opened - ensure external monitor button shows active state
+                        this.add_style_pseudo_class('active');
+                    } else {
                         // Menu closed - restore everything
                         console.log('[Multi Monitors Add-On] Menu closed, restoring original state');
                         menu.sourceActor = originalSourceActor;
