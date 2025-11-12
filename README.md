@@ -16,7 +16,7 @@ Add multiple monitors overview and panel for GNOME Shell. This is an updated for
 ## Compatibility
 
 This extension supports GNOME Shell versions:
-- 40, 41, 42, 43, 44, 45, 46
+- 40, 41, 42, 43, 44, 45, 46, 47, 48, 49
 
 Tested on:
 - Zorin OS 18 (Ubuntu 24.04 LTS)
