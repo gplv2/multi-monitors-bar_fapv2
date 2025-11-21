@@ -54,5 +54,6 @@
 
 /* Padding for mirrored indicators (e.g., Vitals extension) */
 .panel-status-menu-box {
-    padding: 4px 4px;
+    padding: 6px 2px;
+    min-height: 24px;
 }
