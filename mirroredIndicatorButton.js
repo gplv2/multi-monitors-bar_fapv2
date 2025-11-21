@@ -128,7 +128,10 @@ class MirroredIndicatorButton extends PanelMenu.Button {
             if (sourceChild && sourceChild instanceof St.BoxLayout) {
                 const container = new St.BoxLayout({
                     style_class: sourceChild.get_style_class_name() || 'panel-status-menu-box',
-                    y_align: Clutter.ActorAlign.CENTER,
+                    y_align: Clutter.ActorAlign.FILL,
+                    // Ensure container doesn't constrain child height
+                    natural_height_set: false,
+                    height: -1,
                 });
 
                 if (this._role === 'dateMenu' && this._sourceIndicator._clockDisplay) {
@@ -172,8 +175,13 @@ class MirroredIndicatorButton extends PanelMenu.Button {
     _createSimpleClone(parent, source) {
         const clone = new Clutter.Clone({
             source: source,
-            y_align: Clutter.ActorAlign.CENTER
+            y_align: Clutter.ActorAlign.FILL,  // Changed from CENTER to FILL to preserve full height
         });
+
+        // Force the clone to respect the natural size of the source
+        clone.set_height(-1);
+        clone.set_width(-1);
+
         parent.add_child(clone);
     }
 

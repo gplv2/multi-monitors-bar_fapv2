@@ -51,3 +51,8 @@
 .activities-icon {
     gap: 6px;
 }
+
+/* Padding for mirrored indicators (e.g., Vitals extension) */
+.panel-status-menu-box {
+    padding: 4px 4px;
+}
