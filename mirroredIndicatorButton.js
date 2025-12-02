@@ -103,9 +103,9 @@ class MirroredIndicatorButton extends PanelMenu.Button {
             const isActive = (i === activeIndex);
             const dot = new St.Widget({
                 style_class: isActive ? 'workspace-dot active' : 'workspace-dot',
-                width: isActive ? 18 : 6,
-                height: 6,
-                style: `border-radius: 3px; background-color: rgba(255, 255, 255, ${isActive ? '1' : '0.5'}); margin: 0 2px;`,
+                width: isActive ? 34 : 7,
+                height: isActive ? 8 : 7,
+                style: `border-radius: 6px; background-color: rgba(255, 255, 255, ${isActive ? '1' : '0.5'}); margin: 0 2px;`,
                 y_align: Clutter.ActorAlign.CENTER,
             });
             this._workspaceDotsBox.add_child(dot);
@@ -158,11 +158,11 @@ class MirroredIndicatorButton extends PanelMenu.Button {
                     this._clockDisplay = clockDisplay;
                 } else {
                     // For other indicators, use clone approach
+                    // Container is FILL to get full-height hover, but clone inside is centered
                     const container = new St.BoxLayout({
                         style_class: sourceChild.get_style_class_name() || 'panel-status-menu-box',
                         y_align: Clutter.ActorAlign.FILL,
-                        natural_height_set: false,
-                        height: -1,
+                        y_expand: true,
                     });
                     
                     this._createSimpleClone(container, sourceChild);
@@ -209,12 +209,9 @@ class MirroredIndicatorButton extends PanelMenu.Button {
     _createSimpleClone(parent, source) {
         const clone = new Clutter.Clone({
             source: source,
-            y_align: Clutter.ActorAlign.FILL,  // Changed from CENTER to FILL to preserve full height
+            y_align: Clutter.ActorAlign.CENTER,  // Center vertically, don't stretch
+            y_expand: false,  // Prevent vertical stretching
         });
-
-        // Force the clone to respect the natural size of the source
-        clone.set_height(-1);
-        clone.set_width(-1);
 
         parent.add_child(clone);
     }
