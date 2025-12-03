@@ -169,8 +169,8 @@ class MirroredIndicatorButton extends PanelMenu.Button {
                         });
                         this._createQuickSettingsClone(container, sourceChild);
                         this.add_child(container);
-                    } else if (this._role === 'favorites-menu' || this._role.includes('favorites')) {
-                        // For favorites-menu extension, use FILL to prevent icon shrinking
+                    } else if (this._role === 'favorites-menu' || this._role.includes('favorites') || this._role.includes('favorite-apps')) {
+                        // For favorites-menu and favorite-apps-menu extensions, use FILL to prevent icon shrinking
                         this.add_style_class_name('mm-favorites-menu');
                         this.y_expand = true;
                         this.y_align = Clutter.ActorAlign.FILL;
@@ -291,14 +291,113 @@ class MirroredIndicatorButton extends PanelMenu.Button {
                 return Clutter.EVENT_STOP;
             }
             
+            // Check for standard menu first
             if (this._sourceIndicator && this._sourceIndicator.menu) {
                 return this._openMirroredMenu();
+            }
+            
+            // Handle extensions with custom popup menus (like favorite-apps-menu@venovar)
+            // These extensions have _popupFavoriteAppsMenu or similar custom menus
+            if (this._sourceIndicator) {
+                // Try to find and open custom popup menus
+                const customMenus = [
+                    '_popupFavoriteAppsMenu',
+                    '_popupPowerItemsMenu', 
+                    '_popup',
+                    '_popupMenu'
+                ];
+                
+                for (const menuName of customMenus) {
+                    if (this._sourceIndicator[menuName] && typeof this._sourceIndicator[menuName].toggle === 'function') {
+                        return this._openCustomPopupMenu(this._sourceIndicator[menuName]);
+                    }
+                }
+                
+                // If no menu found, try to emit a button press on the source indicator
+                // This allows the source indicator to handle the click itself
+                if (typeof this._sourceIndicator.vfunc_button_press_event === 'function' ||
+                    typeof this._sourceIndicator.emit === 'function') {
+                    return this._forwardClickToSource();
+                }
             }
         } catch (e) {
             console.error('[Multi Monitors Add-On] Error opening mirrored menu:', String(e), e.stack);
         }
 
         return Clutter.EVENT_PROPAGATE;
+    }
+
+    _forwardClickToSource() {
+        // Forward the click to the source indicator
+        // This makes the source indicator handle the click as if it was clicked directly
+        try {
+            this.add_style_pseudo_class('active');
+            
+            // Emit button-press-event on the source
+            const event = Clutter.get_current_event();
+            if (event && this._sourceIndicator.emit) {
+                this._sourceIndicator.emit('button-press-event', event);
+            }
+            
+            // Also try button-release-event which some extensions use
+            if (event && this._sourceIndicator.emit) {
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
+                    try {
+                        this._sourceIndicator.emit('button-release-event', event);
+                    } catch (_e) {}
+                    this.remove_style_pseudo_class('active');
+                    return GLib.SOURCE_REMOVE;
+                });
+            }
+            
+            return Clutter.EVENT_STOP;
+        } catch (e) {
+            console.error('[Multi Monitors Add-On] Error forwarding click:', String(e));
+            return Clutter.EVENT_PROPAGATE;
+        }
+    }
+
+    _openCustomPopupMenu(popupMenu) {
+        const monitorIndex = Main.layoutManager.findIndexForActor(this);
+        
+        // Close the menu if it's already open
+        if (popupMenu.isOpen) {
+            popupMenu.close();
+            return Clutter.EVENT_STOP;
+        }
+
+        // Store original source actor
+        const originalSourceActor = popupMenu.sourceActor;
+        
+        // Add active style to this button
+        this.add_style_pseudo_class('active');
+
+        // Update popup's sourceActor to position correctly
+        popupMenu.sourceActor = this;
+
+        // Update positioning for the correct monitor
+        if (popupMenu.box) {
+            try {
+                const monitor = Main.layoutManager.monitors[monitorIndex];
+                if (monitor && popupMenu.box._updateFlip) {
+                    popupMenu.box._updateFlip(monitor);
+                }
+            } catch (_e) {}
+        }
+
+        // Setup cleanup on menu close
+        const openStateId = popupMenu.connect('open-state-changed', (_m, isOpen) => {
+            if (isOpen) {
+                this.add_style_pseudo_class('active');
+            } else {
+                this.remove_style_pseudo_class('active');
+                popupMenu.sourceActor = originalSourceActor;
+                popupMenu.disconnect(openStateId);
+            }
+        });
+
+        popupMenu.open();
+        return Clutter.EVENT_STOP;
     }
 
     _openMirroredMenu() {
