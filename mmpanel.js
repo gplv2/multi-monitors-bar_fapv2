@@ -349,7 +349,36 @@ class MultiMonitorsPanel extends St.Widget {
                                                             this._showDateTime.bind(this));
         this._showDateTime();
 
+        // Watch for late-loading extensions (like Apps and Places)
+        this._startExtensionWatcher();
+
         this.connect('destroy', this.destroy.bind(this));
+    }
+
+    _startExtensionWatcher() {
+        // Listen for extension state changes (enable/disable/load)
+        this._extensionStateChangedId = Main.extensionManager.connect('extension-state-changed', 
+            this._onExtensionStateChanged.bind(this));
+        
+        // Also do one delayed check for extensions that loaded before we connected
+        this._initialCheckTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
+            this._updatePanel();
+            this._initialCheckTimeoutId = null;
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _onExtensionStateChanged(_extensionManager, _extension) {
+        // An extension state changed - check if new indicators appeared
+        // Use a small delay to let the extension fully initialize its indicators
+        if (this._extensionUpdateTimeoutId) {
+            GLib.source_remove(this._extensionUpdateTimeoutId);
+        }
+        this._extensionUpdateTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            this._updatePanel();
+            this._extensionUpdateTimeoutId = null;
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     vfunc_map() {
@@ -359,6 +388,20 @@ class MultiMonitorsPanel extends St.Widget {
     }
 
     destroy() {
+        // Clean up extension watcher
+        if (this._extensionStateChangedId) {
+            Main.extensionManager.disconnect(this._extensionStateChangedId);
+            this._extensionStateChangedId = null;
+        }
+        if (this._initialCheckTimeoutId) {
+            GLib.source_remove(this._initialCheckTimeoutId);
+            this._initialCheckTimeoutId = null;
+        }
+        if (this._extensionUpdateTimeoutId) {
+            GLib.source_remove(this._extensionUpdateTimeoutId);
+            this._extensionUpdateTimeoutId = null;
+        }
+
         if (this._workareasChangedId) {
             global.display.disconnect(this._workareasChangedId);
             this._workareasChangedId = null;
