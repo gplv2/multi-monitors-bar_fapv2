@@ -24,13 +24,11 @@ import * as PanelModule from 'resource:///org/gnome/shell/ui/panel.js';
 
 import * as MMLayout from './mmlayout.js';
 import * as MMOverview from './mmoverview.js';
-import * as MMIndicator from './indicator.js';
 import * as MMPanel from './mmpanel.js';
 
 const MUTTER_SCHEMA = 'org.gnome.mutter';
 const WORKSPACES_ONLY_ON_PRIMARY_ID = 'workspaces-only-on-primary';
 
-const SHOW_INDICATOR_ID = 'show-indicator';
 const THUMBNAILS_SLIDER_POSITION_ID = 'thumbnails-slider-position';
 
 export function patchAddActorMethod(prototype) {
@@ -77,33 +75,13 @@ export default class MultiMonitorsExtension extends Extension {
         super(metadata);
         this._settings = null;
         this._mu_settings = null;
-        this.mmIndicator = null;
         this._mmMonitors = 0;
         this.syncWorkspacesActualGeometry = null;
         
         this._switchOffThumbnailsMuId = null;
-        this._showIndicatorId = null;
         this._showPanelId = null;
         this._thumbnailsSliderPositionId = null;
         this._relayoutId = null;
-    }
-
-    _showIndicator() {
-		if(this._settings.get_boolean(SHOW_INDICATOR_ID)) {
-			if(!this.mmIndicator) {
-				this.mmIndicator = Main.panel.addToStatusArea('MultiMonitorsAddOn', new MMIndicator.MultiMonitorsIndicator(this._settings, this.path));
-			}
-		}
-		else {
-			this._hideIndicator();
-		}
-    }
-
-    _hideIndicator() {
-		if(this.mmIndicator) {
-			this.mmIndicator.destroy();
-			this.mmIndicator = null;
-		}
     }
 
     _showThumbnailsSlider() {
@@ -199,9 +177,6 @@ export default class MultiMonitorsExtension extends Extension {
     }
 
     enable() {
-		if(Main.panel.statusArea.MultiMonitorsAddOn)
-			this.disable();
-		
 		this._mmMonitors = 0;
 
 		this._settings = this.getSettings();
@@ -209,9 +184,6 @@ export default class MultiMonitorsExtension extends Extension {
 
 		this._switchOffThumbnailsMuId = this._mu_settings.connect('changed::'+WORKSPACES_ONLY_ON_PRIMARY_ID,
 																	this._switchOffThumbnails.bind(this));
-
-		this._showIndicatorId = this._settings.connect('changed::'+SHOW_INDICATOR_ID, this._showIndicator.bind(this));
-		this._showIndicator();
 
 		mmLayoutManager = new MMLayout.MultiMonitorsLayoutManager(this._settings);
 		
@@ -265,13 +237,6 @@ export default class MultiMonitorsExtension extends Extension {
 			this._settings.disconnect(this._thumbnailsSliderPositionId);
 			this._thumbnailsSliderPositionId = null;
 		}
-		
-		if (this._showIndicatorId) {
-			this._settings.disconnect(this._showIndicatorId);
-			this._showIndicatorId = null;
-		}
-
-		this._hideIndicator();
 
 		if (mmLayoutManager) {
 			mmLayoutManager.hidePanel();

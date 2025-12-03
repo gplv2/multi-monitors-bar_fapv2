@@ -23,7 +23,6 @@ import GLib from 'gi://GLib';
 import Adw from 'gi://Adw';
 import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-const SHOW_INDICATOR_ID = 'show-indicator';
 const SHOW_PANEL_ID = 'show-panel';
 const SHOW_ACTIVITIES_ID = 'show-activities';
 const SHOW_APP_MENU_ID = 'show-app-menu';
@@ -32,7 +31,6 @@ const THUMBNAILS_SLIDER_POSITION_ID = 'thumbnails-slider-position';
 const AVAILABLE_INDICATORS_ID = 'available-indicators';
 const TRANSFER_INDICATORS_ID = 'transfer-indicators';
 const ENABLE_HOT_CORNERS = 'enable-hot-corners';
-
 const Columns = {
     INDICATOR_NAME: 0,
     MONITOR_NUMBER: 1
@@ -55,7 +53,6 @@ class MultiMonitorsPrefsWidget extends Gtk.Grid {
         this._display = Gdk.Display.get_default();
         this._monitors = this._display.get_monitors()
 
-        this._addBooleanSwitch(_('Show Multi Monitors indicator on Top Panel.'), SHOW_INDICATOR_ID);
         this._addBooleanSwitch(_('Show Panel on additional monitors.'), SHOW_PANEL_ID);
         this._addBooleanSwitch(_('Show Activities-Button on additional monitors.'), SHOW_ACTIVITIES_ID);
         this._addBooleanSwitch(_('Show AppMenu-Button on additional monitors.'), SHOW_APP_MENU_ID);
