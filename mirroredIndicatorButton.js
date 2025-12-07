@@ -341,11 +341,17 @@ class MirroredIndicatorButton extends PanelMenu.Button {
             
             // Also try button-release-event which some extensions use
             if (event && this._sourceIndicator.emit) {
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
+                // Clean up any existing timeout before creating a new one
+                if (this._forwardClickTimeoutId) {
+                    GLib.source_remove(this._forwardClickTimeoutId);
+                    this._forwardClickTimeoutId = null;
+                }
+                this._forwardClickTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
                     try {
                         this._sourceIndicator.emit('button-release-event', event);
                     } catch (_e) {}
                     this.remove_style_pseudo_class('active');
+                    this._forwardClickTimeoutId = null;
                     return GLib.SOURCE_REMOVE;
                 });
             }
@@ -541,6 +547,11 @@ class MirroredIndicatorButton extends PanelMenu.Button {
         if (this._clockUpdateId) {
             GLib.source_remove(this._clockUpdateId);
             this._clockUpdateId = null;
+        }
+        
+        if (this._forwardClickTimeoutId) {
+            GLib.source_remove(this._forwardClickTimeoutId);
+            this._forwardClickTimeoutId = null;
         }
         
         if (this._role === 'activities') {
