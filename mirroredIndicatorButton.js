@@ -169,8 +169,8 @@ class MirroredIndicatorButton extends PanelMenu.Button {
                         });
                         this._createQuickSettingsClone(container, sourceChild);
                         this.add_child(container);
-                    } else if (this._role === 'favorites-menu' || this._role.includes('favorites') || this._role.includes('favorite-apps')) {
-                        // For favorites-menu and favorite-apps-menu extensions, use FILL to prevent icon shrinking
+                    } else if (this._role === 'favorites-menu' || this._role.toLowerCase().includes('favorites') || this._role.toLowerCase().includes('favorite')) {
+                        // For favorites-menu@fthx extension (registers as 'Favorites Menu Button'), use real widget copy
                         this.add_style_class_name('mm-favorites-menu');
                         this.y_expand = true;
                         this.y_align = Clutter.ActorAlign.FILL;
@@ -254,14 +254,52 @@ class MirroredIndicatorButton extends PanelMenu.Button {
     }
 
     _createFillClone(parent, source) {
-        // For indicators that need full height (favorites-menu, etc.)
-        const clone = new Clutter.Clone({
-            source: source,
-            y_align: Clutter.ActorAlign.FILL,
+        // For favorites-menu@fthx - create real widget copy instead of Clutter.Clone
+        // This prevents visual glitches when the main panel hides during fullscreen
+        const container = new St.BoxLayout({
+            style_class: source.get_style_class_name ? source.get_style_class_name() : 'panel-status-menu-box',
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
             y_expand: true,
+            reactive: false,
         });
 
-        parent.add_child(clone);
+        // Find and copy the icon from the source (favorites-menu uses starred-symbolic icon)
+        const icon = this._findIconInActor(source);
+        if (icon) {
+            const iconCopy = new St.Icon({
+                gicon: icon.gicon,
+                icon_name: icon.icon_name || 'starred-symbolic',
+                icon_size: icon.icon_size || 16,
+                style_class: icon.get_style_class_name() || 'system-status-icon',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            container.add_child(iconCopy);
+        } else {
+            // Fallback: create the starred icon directly
+            const fallbackIcon = new St.Icon({
+                icon_name: 'starred-symbolic',
+                style_class: 'system-status-icon',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            container.add_child(fallbackIcon);
+        }
+
+        parent.add_child(container);
+        this._favoritesContainer = container;
+    }
+
+    _findIconInActor(actor) {
+        // Recursively find St.Icon in an actor tree
+        if (actor instanceof St.Icon) {
+            return actor;
+        }
+        const children = actor.get_children ? actor.get_children() : [];
+        for (const child of children) {
+            const found = this._findIconInActor(child);
+            if (found) return found;
+        }
+        return null;
     }
 
     _createFallbackIcon() {
