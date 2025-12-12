@@ -304,8 +304,8 @@ export const MirroredIndicatorButton = GObject.registerClass(
         }
 
         _onSourceSizeChanged() {
-            // Only update if the source is visible (not during fullscreen)
-            if (this._quickSettingsSource && this._quickSettingsSource.visible) {
+            // Only update if the source is visible (not during fullscreen) and not in overview
+            if (this._quickSettingsSource && this._quickSettingsSource.visible && !Main.overview.visible) {
                 const [sourceWidth, sourceHeight] = this._quickSettingsSource.get_size();
                 if (sourceWidth > 0 && sourceHeight > 0) {
                     this._quickSettingsClone.set_size(sourceWidth, sourceHeight);
