@@ -741,13 +741,10 @@ export const MirroredIndicatorButton = GObject.registerClass(
             const menuBox = menu.box;
 
             // 1. Save original source actor
-            // _sourceActor is used by BoxPointer
             menuBox._sourceActor = this;
             menuBox._sourceAllocation = null;
 
             // 2. Handle constraints
-            // We need to remove constraints that bind the menu to the original panel
-            // but we must restore them later!
             const removedConstraints = [];
             const constraints = menuBox.get_constraints();
             for (let constraint of constraints) {
@@ -758,49 +755,46 @@ export const MirroredIndicatorButton = GObject.registerClass(
                 }
             }
 
-            // 3. Handle setPosition override
-            // We store the current setPosition (which serves as original) and restore it later.
-            // This prevents recursive wrapping on multiple clicks.
+            // 3. Handle setPosition override - FULL MANUAL REPLACEMENT
+            // We do NOT call oldSetPosition because it likely crashes/fails on extended monitors
             const originalSetPosition = menuBox.setPosition;
 
-            const monitor = Main.layoutManager.monitors[monitorIndex];
-
-            // Capture the 'original' function to call inside our wrapper
-            // Bind it to ensuring 'this' context is preserved if it's a method
-            const boundOriginalSetPosition = originalSetPosition.bind(menuBox);
+            const monitor = Main.layoutManager.monitors[monitorIndex] || Main.layoutManager.primaryMonitor;
 
             menuBox.setPosition = function (sourceActor, alignment) {
-                // Call the original setPosition logic first
-                boundOriginalSetPosition(sourceActor, alignment);
+                // Calculate position manually
+                const [btnX, btnY] = sourceActor.get_transformed_position();
+                const [btnW, btnH] = sourceActor.get_transformed_size();
+                const [menuW, menuH] = this.get_preferred_size(); // Get preferred size (min, nat)
+                const finalMenuW = menuW[1]; // Use natural width
+                // Height might be dynamic, use current size or preferred?
+                // BoxPointer usually has size by now.
+                const [currW, currH] = this.get_size();
+                const finalMenuH = currH > 0 ? currH : menuH[1];
 
-                // Then adjust if out of bounds (mirrored monitor logic)
-                const [x, y] = this.get_position();
-                const [w, h] = this.get_size();
+                // Center horizontally on the button
+                let newX = btnX + (btnW / 2) - (finalMenuW / 2);
+                let newY = btnY + btnH; // Below the button
 
-                if (x < monitor.x || x + w > monitor.x + monitor.width ||
-                    y < monitor.y || y + h > monitor.y + monitor.height) {
-
-                    const [btnX, btnY] = sourceActor.get_transformed_position();
-                    const [btnW, btnH] = sourceActor.get_transformed_size();
-
-                    let newX = btnX;
-                    let newY = btnY + btnH;
-
-                    if (newX + w > monitor.x + monitor.width) {
-                        newX = monitor.x + monitor.width - w;
-                    }
-                    if (newX < monitor.x) {
-                        newX = monitor.x;
-                    }
-                    if (newY + h > monitor.y + monitor.height) {
-                        newY = btnY - h;
-                    }
-
-                    this.set_position(newX, newY);
+                // Constraint to monitor bounds
+                if (newX + finalMenuW > monitor.x + monitor.width) {
+                    newX = monitor.x + monitor.width - finalMenuW;
                 }
+                if (newX < monitor.x) {
+                    newX = monitor.x;
+                }
+
+                // Vertical constraint (flip if needed, though usually bar is top)
+                if (newY + finalMenuH > monitor.y + monitor.height) {
+                    newY = btnY - finalMenuH;
+                    if (this.setArrowSide) this.setArrowSide(St.Side.BOTTOM);
+                } else {
+                    if (this.setArrowSide) this.setArrowSide(St.Side.TOP);
+                }
+
+                this.set_position(Math.round(newX), Math.round(newY));
             };
 
-            // Return state object for restoration
             return {
                 originalSetPosition: originalSetPosition,
                 removedConstraints: removedConstraints
