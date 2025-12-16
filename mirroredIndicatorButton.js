@@ -233,8 +233,19 @@ export const MirroredIndicatorButton = GObject.registerClass(
 
         _createSimpleClone(parent, source) {
             // Check if this is a problematic extension that needs static icon copies
-            // (Tiling Shell and similar extensions that resize during fullscreen)
-            const problematicExtensions = ['tiling', 'tilingshell', 'forge', 'pop-shell'];
+            // (Extensions that resize during fullscreen or shrink on GNOME < 49)
+            // This includes:
+            // - Tiling extensions: resize during fullscreen
+            // - System Monitor extensions: shrink icons on GNOME < 49
+            // - AppIndicator extensions: shrink icons on GNOME < 49
+            const problematicExtensions = [
+                // Tiling extensions
+                'tiling', 'tilingshell', 'forge', 'pop-shell',
+                // System monitor extensions (shrink on GNOME < 49)
+                'system-monitor', 'system_monitor', 'vitals', 'tophat', 'astra-monitor',
+                // AppIndicator/tray extensions (shrink on GNOME < 49)
+                'appindicator', 'ubuntu-appindicator', 'kstatusnotifier', 'tray'
+            ];
             const isProblematic = problematicExtensions.some(name =>
                 this._role && this._role.toLowerCase().includes(name)
             );
