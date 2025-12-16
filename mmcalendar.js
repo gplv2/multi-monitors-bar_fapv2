@@ -24,14 +24,6 @@ import Pango from 'gi://Pango';
 import GObject from 'gi://GObject';
 import GLib from 'gi://GLib';
 
-import * as Config from 'resource:///org/gnome/shell/misc/config.js';
-
-// Shell version for feature detection
-const [major] = Config.PACKAGE_VERSION.split('.');
-const shellVersion = Number.parseInt(major);
-
-export let MainRef = null;
-export function setMainRef(m) { MainRef = m; }
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as MessageList from 'resource:///org/gnome/shell/ui/messageList.js';
 import * as DateMenu from 'resource:///org/gnome/shell/ui/dateMenu.js';
@@ -41,6 +33,10 @@ import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.j
 
 import * as ExtensionUtils from 'resource:///org/gnome/shell/misc/extensionUtils.js';
 import * as MultiMonitors from './extension.js';
+import { shellVersion } from './extension.js';
+
+export let MainRef = null;
+export function setMainRef(m) { MainRef = m; }
 
 // TodayButton is not exported in GNOME Shell 46, so we need to implement our own
 // Based on the upstream DateMenu.TodayButton implementation

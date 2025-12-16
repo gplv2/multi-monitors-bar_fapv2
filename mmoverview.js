@@ -23,12 +23,6 @@ import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
 import Meta from 'gi://Meta';
 
-import * as Config from 'resource:///org/gnome/shell/misc/config.js';
-
-// Shell version for feature detection
-const [major] = Config.PACKAGE_VERSION.split('.');
-const shellVersion = Number.parseInt(major);
-
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Params from 'resource:///org/gnome/shell/misc/params.js';
 import * as WorkspaceThumbnail from 'resource:///org/gnome/shell/ui/workspaceThumbnail.js';
@@ -41,6 +35,7 @@ import * as WorkspacesView from 'resource:///org/gnome/shell/ui/workspacesView.j
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import * as MultiMonitors from './extension.js';
+import { shellVersion } from './extension.js';
 import * as Constants from './mmPanelConstants.js';
 
 // Re-export for backward compatibility

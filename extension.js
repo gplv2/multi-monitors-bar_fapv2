@@ -18,9 +18,14 @@ along with this program; if not, visit https://www.gnu.org/licenses/.
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {ANIMATION_TIME} from 'resource:///org/gnome/shell/ui/overview.js';
-import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+import { ANIMATION_TIME } from 'resource:///org/gnome/shell/ui/overview.js';
+import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as PanelModule from 'resource:///org/gnome/shell/ui/panel.js';
+import * as Config from 'resource:///org/gnome/shell/misc/config.js';
+
+// Shell version for feature detection - centralized here and exported for other modules
+const [major] = Config.PACKAGE_VERSION.split('.');
+export const shellVersion = Number.parseInt(major);
 
 import * as MMLayout from './mmlayout.js';
 import * as MMOverview from './mmoverview.js';
@@ -32,38 +37,38 @@ const WORKSPACES_ONLY_ON_PRIMARY_ID = 'workspaces-only-on-primary';
 const THUMBNAILS_SLIDER_POSITION_ID = 'thumbnails-slider-position';
 
 export function patchAddActorMethod(prototype) {
-    if (!prototype.add_actor) {
-        if (prototype.add_child) {
-            prototype.add_actor = function(actor) {
-                return this.add_child(actor);
-            };
-        } else {
-            let parent = Object.getPrototypeOf(prototype);
-            if (parent && parent.add_child) {
-                prototype.add_actor = function(actor) {
-                    return this.add_child(actor);
-                };
-            }
-        }
-    }
+	if (!prototype.add_actor) {
+		if (prototype.add_child) {
+			prototype.add_actor = function (actor) {
+				return this.add_child(actor);
+			};
+		} else {
+			let parent = Object.getPrototypeOf(prototype);
+			if (parent && parent.add_child) {
+				prototype.add_actor = function (actor) {
+					return this.add_child(actor);
+				};
+			}
+		}
+	}
 }
 
-export function copyClass (s, d) {
+export function copyClass(s, d) {
 	if (!s) {
 		return;
 	}
-    let propertyNames = Reflect.ownKeys(s.prototype);
-    for (let pName of propertyNames.values()) {
-        if (typeof pName === "symbol") continue;
-        if (Object.prototype.hasOwnProperty.call(d.prototype, pName)) continue;
-        if (pName === "prototype") continue;
-        if (pName === "constructor") continue;
-        let pDesc = Reflect.getOwnPropertyDescriptor(s.prototype, pName);
-        if (typeof pDesc !== 'object') continue;
-        Reflect.defineProperty(d.prototype, pName, pDesc);
-    }
+	let propertyNames = Reflect.ownKeys(s.prototype);
+	for (let pName of propertyNames.values()) {
+		if (typeof pName === "symbol") continue;
+		if (Object.prototype.hasOwnProperty.call(d.prototype, pName)) continue;
+		if (pName === "prototype") continue;
+		if (pName === "constructor") continue;
+		let pDesc = Reflect.getOwnPropertyDescriptor(s.prototype, pName);
+		if (typeof pDesc !== 'object') continue;
+		Reflect.defineProperty(d.prototype, pName, pDesc);
+	}
 
-    patchAddActorMethod(d.prototype);
+	patchAddActorMethod(d.prototype);
 };
 
 export let mmPanel = [];
@@ -71,26 +76,26 @@ export let mmOverview = null;
 export let mmLayoutManager = null;
 
 export default class MultiMonitorsExtension extends Extension {
-    constructor(metadata) {
-        super(metadata);
-        this._settings = null;
-        this._mu_settings = null;
-        this._mmMonitors = 0;
-        this.syncWorkspacesActualGeometry = null;
-        
-        this._switchOffThumbnailsMuId = null;
-        this._showPanelId = null;
-        this._thumbnailsSliderPositionId = null;
-        this._relayoutId = null;
-    }
+	constructor(metadata) {
+		super(metadata);
+		this._settings = null;
+		this._mu_settings = null;
+		this._mmMonitors = 0;
+		this.syncWorkspacesActualGeometry = null;
 
-    _showThumbnailsSlider() {
+		this._switchOffThumbnailsMuId = null;
+		this._showPanelId = null;
+		this._thumbnailsSliderPositionId = null;
+		this._relayoutId = null;
+	}
+
+	_showThumbnailsSlider() {
 		if (this._settings.get_string(THUMBNAILS_SLIDER_POSITION_ID) === 'none') {
 			this._hideThumbnailsSlider();
 			return;
 		}
 
-		if(this._mu_settings.get_boolean(WORKSPACES_ONLY_ON_PRIMARY_ID))
+		if (this._mu_settings.get_boolean(WORKSPACES_ONLY_ON_PRIMARY_ID))
 			this._mu_settings.set_boolean(WORKSPACES_ONLY_ON_PRIMARY_ID, false);
 
 		if (mmOverview)
@@ -104,11 +109,11 @@ export default class MultiMonitorsExtension extends Extension {
 			}
 		}
 
-		if (Main.overview.searchController && 
+		if (Main.overview.searchController &&
 			Main.overview.searchController._workspacesDisplay &&
 			Main.overview.searchController._workspacesDisplay._syncWorkspacesActualGeometry) {
 			this.syncWorkspacesActualGeometry = Main.overview.searchController._workspacesDisplay._syncWorkspacesActualGeometry;
-			Main.overview.searchController._workspacesDisplay._syncWorkspacesActualGeometry = function() {
+			Main.overview.searchController._workspacesDisplay._syncWorkspacesActualGeometry = function () {
 				if (this._inWindowFade)
 					return;
 
@@ -146,93 +151,93 @@ export default class MultiMonitorsExtension extends Extension {
 	}
 
 	_hideThumbnailsSlider() {
-        if (!mmOverview)
-            return;
+		if (!mmOverview)
+			return;
 
-        for (let idx = 0; idx < mmOverview.length; idx++) {
-            if (mmOverview[idx])
-                mmOverview[idx].destroy();
-        }
-        mmOverview = null;
-        
-        if (this.syncWorkspacesActualGeometry &&
-            Main.overview.searchController &&
-            Main.overview.searchController._workspacesDisplay) {
-            Main.overview.searchController._workspacesDisplay._syncWorkspacesActualGeometry = this.syncWorkspacesActualGeometry;
-        }
-    }
+		for (let idx = 0; idx < mmOverview.length; idx++) {
+			if (mmOverview[idx])
+				mmOverview[idx].destroy();
+		}
+		mmOverview = null;
 
-    _relayout() {
-		if(this._mmMonitors!=Main.layoutManager.monitors.length){
+		if (this.syncWorkspacesActualGeometry &&
+			Main.overview.searchController &&
+			Main.overview.searchController._workspacesDisplay) {
+			Main.overview.searchController._workspacesDisplay._syncWorkspacesActualGeometry = this.syncWorkspacesActualGeometry;
+		}
+	}
+
+	_relayout() {
+		if (this._mmMonitors != Main.layoutManager.monitors.length) {
 			this._mmMonitors = Main.layoutManager.monitors.length;
 			this._hideThumbnailsSlider();
 			this._showThumbnailsSlider();
 		}
-    }
+	}
 
-    _switchOffThumbnails() {
+	_switchOffThumbnails() {
 		if (this._mu_settings.get_boolean(WORKSPACES_ONLY_ON_PRIMARY_ID)) {
 			this._settings.set_string(THUMBNAILS_SLIDER_POSITION_ID, 'none');
 		}
-    }
+	}
 
-    enable() {
+	enable() {
 		this._mmMonitors = 0;
 
 		this._settings = this.getSettings();
 		this._mu_settings = new Gio.Settings({ schema: MUTTER_SCHEMA });
 
-		this._switchOffThumbnailsMuId = this._mu_settings.connect('changed::'+WORKSPACES_ONLY_ON_PRIMARY_ID,
-																	this._switchOffThumbnails.bind(this));
+		this._switchOffThumbnailsMuId = this._mu_settings.connect('changed::' + WORKSPACES_ONLY_ON_PRIMARY_ID,
+			this._switchOffThumbnails.bind(this));
 
 		mmLayoutManager = new MMLayout.MultiMonitorsLayoutManager(this._settings);
-		
-		this._showPanelId = this._settings.connect('changed::'+MMLayout.SHOW_PANEL_ID, mmLayoutManager.showPanel.bind(mmLayoutManager));
+
+		this._showPanelId = this._settings.connect('changed::' + MMLayout.SHOW_PANEL_ID, mmLayoutManager.showPanel.bind(mmLayoutManager));
 		mmLayoutManager.showPanel();
-		
-		this._thumbnailsSliderPositionId = this._settings.connect('changed::'+THUMBNAILS_SLIDER_POSITION_ID, this._showThumbnailsSlider.bind(this));
+
+		this._thumbnailsSliderPositionId = this._settings.connect('changed::' + THUMBNAILS_SLIDER_POSITION_ID, this._showThumbnailsSlider.bind(this));
 		this._relayoutId = Main.layoutManager.connect('monitors-changed', this._relayout.bind(this));
 		this._relayout();
 
-        mmPanel.length = 0;
-        MMLayout.setMMPanelArrayRef(mmPanel);
-        MMPanel.setMMPanelArrayRef(mmPanel);
-        MMOverview.setMMPanelArrayRef(mmPanel);
+		mmPanel.length = 0;
+		MMLayout.setMMPanelArrayRef(mmPanel);
+		MMPanel.setMMPanelArrayRef(mmPanel);
+		MMOverview.setMMPanelArrayRef(mmPanel);
 
-        Main.panel._ensureIndicator = function(role) {
-            let indicator = this.statusArea[role];
-            if (indicator) {
-                indicator.container.show();
-                return null;
-            }
-            else {
+		Main.panel._ensureIndicator = function (role) {
+			let indicator = this.statusArea[role];
+			if (indicator) {
+				indicator.container.show();
+				return null;
+			}
+			else {
 				let constructor = PanelModule.PANEL_ITEM_IMPLEMENTATIONS[role];
-                if (!constructor) {
-                    return null;
-                }
-                indicator = new constructor(this);
-                this.statusArea[role] = indicator;
-            }
-            return indicator;
-        };
-    }
+				if (!constructor) {
+					return null;
+				}
+				indicator = new constructor(this);
+				this.statusArea[role] = indicator;
+			}
+			return indicator;
+		};
+	}
 
-    disable() {
+	disable() {
 		if (this._relayoutId) {
 			Main.layoutManager.disconnect(this._relayoutId);
 			this._relayoutId = null;
 		}
-		
+
 		if (this._switchOffThumbnailsMuId) {
 			this._mu_settings.disconnect(this._switchOffThumbnailsMuId);
 			this._switchOffThumbnailsMuId = null;
 		}
-		
+
 		if (this._showPanelId) {
 			this._settings.disconnect(this._showPanelId);
 			this._showPanelId = null;
 		}
-		
+
 		if (this._thumbnailsSliderPositionId) {
 			this._settings.disconnect(this._thumbnailsSliderPositionId);
 			this._thumbnailsSliderPositionId = null;
@@ -246,9 +251,9 @@ export default class MultiMonitorsExtension extends Extension {
 		this._hideThumbnailsSlider();
 		this._mmMonitors = 0;
 
-        mmPanel.length = 0;
-		
+		mmPanel.length = 0;
+
 		this._settings = null;
 		this._mu_settings = null;
-    }
+	}
 }
