@@ -258,7 +258,7 @@ After making changes to the extension code:
 
 ## License
 
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Credits
 This repo structure and base is copied from spin83
@@ -268,14 +268,3 @@ Original author: spin83
 Original repository: https://github.com/spin83/multi-monitors-add-on
 
 Updated by: Frederyk, Claude, Github Copilot. (Mostly done by AI though.I only use 45 hours of my time to debug,prompt,debug,prompt,frustrated and repeat) 
-
-## Changelog
-
-### Version 29 (Current)
-- Updated extension UUID to `multi-monitors-bar@frederykabryan`
-- Added support for GNOME Shell 45 and 46
-- Added `exclude-indicators` setting to prevent specific indicators from being transferred
-- Fildem indicator is now excluded by default, keeping it on the main monitor
-- Improved indicator filtering logic
-- Updated for Zorin OS 18 / Ubuntu 24.04 LTS compatibility
-- Improved installation script with version checking and better error handling
