@@ -246,7 +246,9 @@ export const MirroredIndicatorButton = GObject.registerClass(
                 // System monitor extensions (shrink on GNOME < 49)
                 'system-monitor', 'system_monitor', 'vitals', 'tophat', 'astra-monitor',
                 // AppIndicator/tray extensions (shrink on GNOME < 49)
-                'appindicator', 'ubuntu-appindicator', 'kstatusnotifier', 'tray'
+                'appindicator', 'ubuntu-appindicator', 'kstatusnotifier', 'tray',
+                // ArcMenu (squished icon fix) - checks loose 'arc' to catch variations
+                'arcmenu', 'arc-menu', 'arc'
             ];
             const isProblematic = problematicExtensions.some(name =>
                 this._role && this._role.toLowerCase().includes(name)
@@ -452,6 +454,12 @@ export const MirroredIndicatorButton = GObject.registerClass(
                         });
                         container.add_child(iconCopy);
                     } else if (widget instanceof St.Label) {
+                        // Skip labels for ArcMenu (user request)
+                        // Use loose check to catch any variation
+                        if (this._role && this._role.toLowerCase().includes('arc')) {
+                            continue;
+                        }
+
                         // Copy labels (like Vitals' numbers/text values)
                         const labelCopy = new St.Label({
                             text: widget.text,
@@ -607,6 +615,21 @@ export const MirroredIndicatorButton = GObject.registerClass(
             // Handle extensions with custom popup menus (like favorite-apps-menu@venovar)
             // These extensions have _popupFavoriteAppsMenu or similar custom menus
             if (this._sourceIndicator) {
+                // ArcMenu specific: try toggleMenu method directly
+                if (typeof this._sourceIndicator.toggleMenu === 'function') {
+                    return this._openArcMenu();
+                }
+
+                // ArcMenu specific: try arcMenu property
+                if (this._sourceIndicator.arcMenu && typeof this._sourceIndicator.arcMenu.toggle === 'function') {
+                    return this._openArcMenu();
+                }
+
+                // ArcMenu specific: try _menuButton.toggleMenu
+                if (this._sourceIndicator._menuButton && typeof this._sourceIndicator._menuButton.toggleMenu === 'function') {
+                    return this._openArcMenu();
+                }
+
                 // Try to find and open custom popup menus
                 const customMenus = [
                     '_popupFavoriteAppsMenu',
@@ -653,6 +676,83 @@ export const MirroredIndicatorButton = GObject.registerClass(
                     this._sourceIndicator.emit('button-release-event', event);
                     this.remove_style_pseudo_class('active');
                     this._forwardClickTimeoutId = null;
+                    return GLib.SOURCE_REMOVE;
+                });
+            }
+
+            return Clutter.EVENT_STOP;
+        }
+
+        _openArcMenu() {
+            // Find ArcMenu's internal menu object
+            let arcMenu = null;
+            let toggleFunc = null;
+
+            if (this._sourceIndicator.arcMenu) {
+                arcMenu = this._sourceIndicator.arcMenu;
+                toggleFunc = () => this._sourceIndicator.arcMenu.toggle();
+            } else if (this._sourceIndicator._menuButton?.arcMenu) {
+                arcMenu = this._sourceIndicator._menuButton.arcMenu;
+                toggleFunc = () => this._sourceIndicator._menuButton.toggleMenu();
+            } else if (typeof this._sourceIndicator.toggleMenu === 'function') {
+                // Try to find arcMenu property on the indicator
+                arcMenu = this._sourceIndicator.arcMenu || this._sourceIndicator.menu;
+                toggleFunc = () => this._sourceIndicator.toggleMenu();
+            }
+
+            // If we found a menu, try to reposition it
+            if (arcMenu && arcMenu.sourceActor) {
+                const originalSourceActor = arcMenu.sourceActor;
+                const originalAddPseudoClass = this._sourceIndicator.add_style_pseudo_class?.bind(this._sourceIndicator);
+
+                // Prevent active state on main panel indicator
+                this._preventMainPanelActiveState(originalAddPseudoClass);
+
+                // Add active style to THIS button
+                this.add_style_pseudo_class('active');
+
+                // Temporarily change sourceActor to this button for positioning
+                arcMenu.sourceActor = this;
+
+                // Connect to menu close to restore state
+                const openStateId = arcMenu.connect('open-state-changed', (_m, isOpen) => {
+                    if (!isOpen) {
+                        this.remove_style_pseudo_class('active');
+                        arcMenu.sourceActor = originalSourceActor;
+
+                        // Restore main panel indicator methods
+                        if (originalAddPseudoClass) {
+                            this._sourceIndicator.add_style_pseudo_class = originalAddPseudoClass;
+                        }
+
+                        arcMenu.disconnect(openStateId);
+                    }
+                });
+
+                // Toggle the menu
+                if (toggleFunc) {
+                    toggleFunc();
+                }
+            } else {
+                // Fallback: just toggle without repositioning
+                this.add_style_pseudo_class('active');
+
+                if (typeof this._sourceIndicator.toggleMenu === 'function') {
+                    this._sourceIndicator.toggleMenu();
+                } else if (this._sourceIndicator.arcMenu?.toggle) {
+                    this._sourceIndicator.arcMenu.toggle();
+                } else if (this._sourceIndicator._menuButton?.toggleMenu) {
+                    this._sourceIndicator._menuButton.toggleMenu();
+                }
+
+                // Clean up active state after a short delay
+                if (this._arcMenuTimeoutId) {
+                    GLib.source_remove(this._arcMenuTimeoutId);
+                    this._arcMenuTimeoutId = null;
+                }
+                this._arcMenuTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+                    this.remove_style_pseudo_class('active');
+                    this._arcMenuTimeoutId = null;
                     return GLib.SOURCE_REMOVE;
                 });
             }
