@@ -15,11 +15,10 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, visit https://www.gnu.org/licenses/.
 */
 
-import * as Config from 'resource:///org/gnome/shell/misc/config.js';
+import * as Utils from './utils.js';
 
 // Shell version for feature detection - centralized here and exported for other modules
-const [major] = Config.PACKAGE_VERSION.split('.');
-export const shellVersion = Number.parseInt(major);
+export const shellVersion = Utils.SHELL_VERSION;
 
 export function patchAddActorMethod(prototype) {
     if (!prototype.add_actor) {

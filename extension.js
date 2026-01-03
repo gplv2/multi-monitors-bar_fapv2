@@ -21,10 +21,9 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { ANIMATION_TIME } from 'resource:///org/gnome/shell/ui/overview.js';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as PanelModule from 'resource:///org/gnome/shell/ui/panel.js';
-import * as Config from 'resource:///org/gnome/shell/misc/config.js';
 
 // Shell version for feature detection - centralized here and exported for other modules
-// Shell version for feature detection - centralized here and exported for other modules
+
 import * as Common from './common.js';
 export const shellVersion = Common.shellVersion;
 export const patchAddActorMethod = Common.patchAddActorMethod;
