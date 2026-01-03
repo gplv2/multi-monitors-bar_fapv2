@@ -68,9 +68,9 @@
     margin: 0;
 }
 
-/* Clipping container for system tray */
+/* Clipping container for system tray - adjust padding to control size during overview */
 .mm-quick-settings-clip {
-    padding: 0;
+    padding: 4px 0;
     margin: 0;
 }
 
@@ -83,7 +83,7 @@
 
 /* Overview state - adjust this to control icon size and padding during overview */
 .mm-quick-settings-overview {
-    height: 30px;
+    height: 36px;
     padding: 0 2px;
 }
 

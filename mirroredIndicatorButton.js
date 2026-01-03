@@ -287,27 +287,27 @@ export const MirroredIndicatorButton = GObject.registerClass(
             this._quickSettingsClipContainer = null;
             this._quickSettingsSource = source;
             this._quickSettingsContainer = parent;
-            this._normalCloneSize = null;
+            this._normalCloneHeight = 0;
 
-            // When overview shows - capture size and wrap in clipping container
+            // When overview shows - capture height and wrap in clipping container
             this._overviewShowingId = Main.overview.connect('showing', () => {
                 if (this._quickSettingsClone && !this._quickSettingsClipContainer) {
-                    // Capture current size
-                    const [w, h] = this._quickSettingsClone.get_size();
-                    this._normalCloneSize = { width: w, height: h };
+                    // Capture current height only
+                    const [, h] = this._quickSettingsClone.get_size();
+                    this._normalCloneHeight = h;
 
-                    // Create clipping container
+                    // Create clipping container - height locked, width dynamic
                     const clipContainer = new St.Widget({
                         style_class: 'mm-quick-settings-clip',
-                        x_expand: false,
+                        x_expand: true,  // Allow width to grow
                         y_expand: false,
                         y_align: Clutter.ActorAlign.FILL,
                         clip_to_allocation: true,
                     });
 
-                    // Set fixed size on container
-                    if (w > 0 && h > 0) {
-                        clipContainer.set_size(w, h);
+                    // Lock only the height, let width be auto
+                    if (h > 0) {
+                        clipContainer.set_height(h);
                     }
 
                     // Reparent clone into container
