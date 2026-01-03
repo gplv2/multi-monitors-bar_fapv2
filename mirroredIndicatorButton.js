@@ -269,9 +269,7 @@ export const MirroredIndicatorButton = GObject.registerClass(
         }
 
         _createQuickSettingsClone(parent, source) {
-            // SIMPLE APPROACH - Clone directly in parent
-            // This is the ONLY approach that gives "perfect" size
-
+            // Create the clone
             const clone = new Clutter.Clone({
                 source: source,
                 y_align: Clutter.ActorAlign.FILL,
@@ -280,12 +278,59 @@ export const MirroredIndicatorButton = GObject.registerClass(
                 x_expand: false,
             });
 
+            // Add clone directly to parent (no container in normal mode)
             parent.add_child(clone);
 
             this._quickSettingsClone = clone;
             this._quickSettingsClipContainer = null;
             this._quickSettingsSource = source;
             this._quickSettingsContainer = parent;
+            this._normalCloneSize = null;
+
+            // When overview shows - capture size and wrap in clipping container
+            this._overviewShowingId = Main.overview.connect('showing', () => {
+                if (this._quickSettingsClone && !this._quickSettingsClipContainer) {
+                    // Capture current size
+                    const [w, h] = this._quickSettingsClone.get_size();
+                    this._normalCloneSize = { width: w, height: h };
+
+                    // Create clipping container
+                    const clipContainer = new St.Widget({
+                        style_class: 'mm-quick-settings-clip',
+                        x_expand: false,
+                        y_expand: false,
+                        y_align: Clutter.ActorAlign.FILL,
+                        clip_to_allocation: true,
+                    });
+
+                    // Set fixed size on container
+                    if (w > 0 && h > 0) {
+                        clipContainer.set_size(w, h);
+                    }
+
+                    // Reparent clone into container
+                    this._quickSettingsContainer.remove_child(this._quickSettingsClone);
+                    clipContainer.add_child(this._quickSettingsClone);
+                    this._quickSettingsContainer.add_child(clipContainer);
+                    this._quickSettingsClipContainer = clipContainer;
+                }
+            });
+
+            // When overview hides - remove clipping container, put clone back directly
+            this._overviewHiddenId = Main.overview.connect('hidden', () => {
+                if (this._quickSettingsClipContainer && this._quickSettingsClone) {
+                    // Reparent clone back to parent directly
+                    this._quickSettingsClipContainer.remove_child(this._quickSettingsClone);
+                    this._quickSettingsContainer.remove_child(this._quickSettingsClipContainer);
+                    this._quickSettingsContainer.add_child(this._quickSettingsClone);
+
+                    // Destroy clip container
+                    this._quickSettingsClipContainer.destroy();
+                    this._quickSettingsClipContainer = null;
+
+                    this._quickSettingsClone.queue_relayout();
+                }
+            });
         }
 
         _applyNormalMode() {

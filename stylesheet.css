@@ -58,9 +58,9 @@
 
 /* Quick Settings (system tray) in extended monitor */
 .mm-quick-settings {
-    padding: 0 4px;
-    -natural-hpadding: 4px;
-    -minimum-hpadding: 4px;
+    padding: 0;
+    -natural-hpadding: 0;
+    -minimum-hpadding: 0;
 }
 
 .mm-quick-settings-box {
@@ -72,6 +72,19 @@
 .mm-quick-settings-clip {
     padding: 0;
     margin: 0;
+}
+
+/* Normal state - adjust this to control default icon size and padding */
+.mm-quick-settings-normal {
+    height: 42px;
+    padding: 0 2px;
+    scale: 1.25;
+}
+
+/* Overview state - adjust this to control icon size and padding during overview */
+.mm-quick-settings-overview {
+    height: 30px;
+    padding: 0 2px;
 }
 
 /* Favorites menu in extended monitor - full height */
